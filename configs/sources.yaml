@@ -32,13 +32,27 @@ sources:
     note: "Human-annotated multilingual instruction pairs. The numeric quality score is conservative because the source does not provide a shared per-record score; calibrate per language before promotion."
   wikimedia:
     enabled: false
+    audit_only: true
     kind: text_dump
+    dataset_id: Wikimedia project dumps (project-specific)
     dataset_card: https://dumps.wikimedia.org/legal.html
-    license: "Per-project and per-item; often GFDL and/or CC BY-SA 4.0 for text"
-    note: "Not automatically a universal corpus license. Keep attribution and screen exceptions and potential infringements."
+    license: item_level_review_required
+    license_url: https://dumps.wikimedia.org/legal.html
+    rights_status: needs_item_level_review
+    allowed_uses: [audit_only]
+    redistribution: false
+    commercial_use: review_required
+    note: "Audit only: project and item licenses vary; preserve attribution/ShareAlike metadata and exclude fair-use or unclear items."
   arxiv:
     enabled: false
+    audit_only: true
     kind: scholarly_text
+    dataset_id: arXiv article versions (identifier-specific)
     dataset_card: https://info.arxiv.org/help/license/index.html
-    license: "Per article version; metadata CC0"
-    note: "The default arXiv distribution license does not grant broad downstream reuse."
+    license: item_level_review_required
+    license_url: https://info.arxiv.org/help/license/reuse.html
+    rights_status: needs_item_level_review
+    allowed_uses: [metadata_audit]
+    redistribution: false
+    commercial_use: review_required
+    note: "Audit only: inspect the license on each article version; do not ingest full text under the default non-exclusive license."

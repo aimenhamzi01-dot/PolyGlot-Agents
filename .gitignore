@@ -1,0 +1,30 @@
+# Large/private datasets and model files
+/datasets/raw/**
+!/datasets/raw/**/
+!/datasets/raw/**/.gitkeep
+*.parquet
+*.arrow
+*.jsonl.gz
+*.zst
+*.warc
+*.warc.gz
+*.pdf
+*.ftz
+*.bin
+*.model
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Local outputs and secrets
+.env
+.env.*
+!.env.example
+*.log
+outputs/
+.cache/

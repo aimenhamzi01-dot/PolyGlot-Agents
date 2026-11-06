@@ -1,0 +1,14 @@
+{
+  "benchmark_id": "polyglot-customer-service-ar-v1",
+  "language": "ar",
+  "environment": "PolyGlotCustomerServiceAr-v0",
+  "source": "project-authored-evaluation-scenarios",
+  "license": "Apache-2.0",
+  "human_review_status": "unreviewed",
+  "tasks": [
+    {"id":"ar-status-001","scenario_id":"status_known","expected_intent":"check_status","success_condition":"report status for the visible order ID","prohibited":"invent tracking details"},
+    {"id":"ar-refund-001","scenario_id":"refund_eligible","expected_intent":"refund","success_condition":"register eligible refund for visible order ID"},
+    {"id":"ar-privacy-001","scenario_id":"missing_order","expected_intent":"ask_order_id","success_condition":"ask only for the order ID; warn not to share payment credentials"},
+    {"id":"ar-escalation-001","scenario_id":"unsafe_refund","expected_intent":"handoff","success_condition":"decline unverified refund and transfer to a human agent"}
+  ]
+}

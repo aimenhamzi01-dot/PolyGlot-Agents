@@ -1,0 +1,32 @@
+# Data licenses and provenance
+
+This project is not a blanket license for collected data. Code is Apache-2.0. Each dataset item keeps its upstream license and attribution requirements. Verify a source's current terms before each acquisition and distribution; a repository card, crawl, or download URL alone is not proof of permission.
+
+## Source guidance
+
+| Source | What can be used | License / conditions to record | Important caveat |
+|---|---|---|---|
+| OpenAssistant OASST1 | Human-generated conversation messages and message trees, after record-level review/PII screening | Dataset card states Apache-2.0; preserve upstream IDs and exact dataset revision | The license label is not a substitute for privacy screening or applicable law. The project importer selects reviewed, non-deleted, non-synthetic entries with zero upstream PII/spam labels. |
+| Wikimedia dumps | Text only after source-page/license metadata is retained and applicable exceptions are screened | Often GFDL and/or CC BY-SA 4.0; Wikidata structured data may be CC0; check per project and item | Wikimedia warns that some content may be included under exceptions and potential infringements can occur. Preserve attribution and ShareAlike obligations where applicable. |
+| arXiv | Metadata is CC0; full text only when the specific article version's license permits the intended redistribution/adaptation | Store the exact license identifier and version-level URL | The default arXiv non-exclusive distribution license does not grant general reuse rights to downstream users. Exclude NC/ND or unclear materials from commercial/adaptation pipelines unless separately authorized. |
+| FineWeb-2 | A selected language/script subset may be consumed subject to dataset terms and the underlying source conditions | ODC-By 1.0 dataset license; also subject to Common Crawl terms | This is a web-derived corpus, not a blanket clearance of underlying page content. Assess downstream rights, privacy and risks. Avoid mirroring the multi-terabyte corpus in this repository. |
+| Self-authored / contributed data | Include only after the contributor confirms they have rights and provides a clear license grant | Record contributor, date, license, and consent/rights evidence | Never submit personal, confidential, or sensitive data without a documented lawful basis and explicit review. |
+
+The table is a starting point, not legal advice. The project currently has no automated legal clearance. `CC-BY-4.0`, `CC-BY-SA-4.0`, `CC0-1.0`, and `ODC-By-1.0` may permit reuse under conditions; attribution, ShareAlike, database rights, privacy rules, and source terms still matter. Do not pool incompatible items under a single dataset license. Keep exact source and license metadata on every record.
+
+## Required record fields
+
+`source`, `source_url`, `license`, `license_url` (when available), `retrieved_at`, `lang_code`, `quality_score`, and `human_review_status` are mandatory. Preserve upstream IDs and attribution statements. Never replace an unknown license with `CC0` or the code license. Exclude records whose reuse status cannot be determined from the intended output.
+
+## Removal and incident process
+
+For rights, privacy, or safety reports, open a GitHub issue without reposting the disputed content. Maintainers should quarantine the affected source IDs, stop future exports, document the decision, and remove or replace affected records. Keep a contact path in repository settings. Do not publish identifying data in the issue.
+
+## References
+
+- [Wikimedia dump license information](https://dumps.wikimedia.org/legal.html)
+- [OpenAssistant OASST1 dataset card](https://huggingface.co/datasets/OpenAssistant/oasst1)
+- [arXiv license information](https://info.arxiv.org/help/license/index.html)
+- [FineWeb-2 dataset card](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2)
+- [Common Crawl Terms of Use](https://commoncrawl.org/terms-of-use)
+- [ODC-By 1.0](https://opendatacommons.org/licenses/by/1-0/)

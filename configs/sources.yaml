@@ -1,0 +1,17 @@
+sources:
+  openassistant_oasst1:
+    dataset_id: OpenAssistant/oasst1
+    dataset_card: https://huggingface.co/datasets/OpenAssistant/oasst1
+    license: Apache-2.0
+    license_url: https://huggingface.co/datasets/OpenAssistant/oasst1/blob/main/LICENSE
+    source_language_tags: "Read the dataset card; source tags vary (e.g. pt-BR, uk-UA)."
+    importer: scripts/import_oasst.py
+    note: "Human-generated and human-annotated assistant conversations. Use only records passing upstream review and PII/spam filters. Verify current terms and local requirements before reuse."
+  wikimedia:
+    dataset_card: https://dumps.wikimedia.org/legal.html
+    license: "Per-project and per-item; often GFDL and/or CC BY-SA 4.0 for text"
+    note: "Not automatically a universal corpus license. Keep attribution and screen exceptions and potential infringements."
+  arxiv:
+    dataset_card: https://info.arxiv.org/help/license/index.html
+    license: "Per article version; metadata CC0"
+    note: "The default arXiv distribution license does not grant broad downstream reuse."

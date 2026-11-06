@@ -24,6 +24,25 @@ The bundled OASST1 snapshot is a capped sample from the source tags that produce
 
 For rights, privacy, or safety reports, open a GitHub issue without reposting the disputed content. Maintainers should quarantine the affected source IDs, stop future exports, document the decision, and remove or replace affected records. Keep a contact path in repository settings. Do not publish identifying data in the issue.
 
+The repository includes a non-destructive lifecycle tool for this process:
+
+```bash
+python -m scripts.rights_lifecycle \
+  --mode manifest --input datasets/incoming/run-id \
+  --output /tmp/provenance-manifest.json
+
+python -m scripts.rights_lifecycle \
+  --mode quarantine --input datasets/incoming/run-id \
+  --output /tmp/quarantine-run \
+  --record-id source-record-123 \
+  --reason rights_request
+```
+
+`manifest` records each record ID, source, source URL, file, line, and content digest.
+`quarantine` writes a filtered copy and `deletion_manifest.jsonl` tombstones; it never
+mutates the input directory. Use pseudonymous or source-system references and retain
+the decision evidence in protected maintainer storage.
+
 ## References
 
 - [Wikimedia dump license information](https://dumps.wikimedia.org/legal.html)

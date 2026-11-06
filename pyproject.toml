@@ -38,6 +38,7 @@ polyglot-validate-records = "scripts.validate_records:main"
 polyglot-render-report = "evaluation.report:main"
 polyglot-check-regression = "evaluation.check_regression:main"
 polyglot-review-queue = "scripts.review_queue:main"
+polyglot-rights-lifecycle = "scripts.rights_lifecycle:main"
 
 [tool.setuptools.packages.find]
 include = ["environments*", "evaluation*", "scripts*", "pipelines*"]

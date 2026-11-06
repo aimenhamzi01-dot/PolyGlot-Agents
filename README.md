@@ -121,6 +121,16 @@ python evaluation/run_benchmark.py \
   --output /tmp/polyglot-ar-v0.1-development.json
 ```
 
+Validate every benchmark task contract locally with:
+
+```bash
+python -m scripts.validate_benchmarks
+# Or, after installing the package:
+polyglot-validate-benchmarks
+```
+
+The validator checks required metadata and task fields, unique task IDs, declared split names, explicit placeholder status for empty language templates, task-count consistency, and scenario references for the executable customer-service environment. It deliberately does not treat placeholder language files as runnable benchmarks.
+
 The runner records the benchmark version, split, task category, success, safe completion, safety violations, tool calls, truncation, reward, and event log. The hidden split must remain outside training and should be moved to protected maintainer storage before publishing official scores. The current 30 scenarios cover status lookup, clarification, transient recovery, eligible and ineligible refunds, duplicate prevention, escalation, and privacy-safe refusal. Native-speaker review and protected test storage remain the next validation steps.
 
 Only after these steps should the project expand broadly into additional languages, commerce, research, coding and enterprise workflows. Depth, evidence and rights are more valuable than a large directory of unvalidated languages.

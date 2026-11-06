@@ -57,5 +57,7 @@ jobs:
               raise SystemExit("Invalid data files:\n" + "\n".join(failures))
           print("All repository JSON and YAML files are valid.")
           PY
+      - name: Validate benchmark task contracts
+        run: python -m scripts.validate_benchmarks
       - name: Check Python bytecode compilation
         run: python -m compileall -q environments evaluation scripts pipelines tests

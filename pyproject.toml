@@ -32,6 +32,9 @@ training = [
   "safetensors>=0.4",
 ]
 
+[project.scripts]
+polyglot-validate-benchmarks = "scripts.validate_benchmarks:main"
+
 [tool.setuptools.packages.find]
 include = ["environments*", "evaluation*", "scripts*", "pipelines*"]
 

@@ -61,5 +61,13 @@ jobs:
         run: python -m scripts.validate_benchmarks
       - name: Validate bundled example records
         run: python -m scripts.validate_records --input examples/multilingual.jsonl
+      - name: Run deterministic baseline regression
+        run: |
+          python evaluation/run_benchmark.py \
+            --benchmark evaluation/benchmarks/ar_tasks_v0.2.json \
+            --split development \
+            --output /tmp/polyglot-baseline-report.json
+          python -m evaluation.check_regression \
+            --report /tmp/polyglot-baseline-report.json
       - name: Check Python bytecode compilation
         run: python -m compileall -q environments evaluation scripts pipelines tests

@@ -36,6 +36,7 @@ training = [
 polyglot-validate-benchmarks = "scripts.validate_benchmarks:main"
 polyglot-validate-records = "scripts.validate_records:main"
 polyglot-render-report = "evaluation.report:main"
+polyglot-check-regression = "evaluation.check_regression:main"
 
 [tool.setuptools.packages.find]
 include = ["environments*", "evaluation*", "scripts*", "pipelines*"]

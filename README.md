@@ -22,7 +22,9 @@ The following capabilities exist in the repository today and can be inspected or
 | Rights-gated ingestion | Pinned-source connectors for OASST1 and Aya, fail-closed rights metadata checks, PII/contact screening, reject reports, duplicate reports, and SHA-256 manifests | The rights gate checks declared evidence; it is not automated legal clearance |
 | Language-neutral environment | Shared Arabic/English/French engine with intent-gated refunds, approval checks, replay protection, and evidence-grounded final claims | Locale packs are synthetic development fixtures, not reviewed public benchmarks |
 | Executable evaluation | 30 deterministic Arabic scenarios, 24 public development cards, machine-checkable expected outcomes, safe tool contracts, rewards, event logs, and a rule-based baseline | No protected hidden-test set is provisioned; task wording and fixtures still need native-speaker validation |
-| Benchmark runner | Auditable JSON reports with benchmark, environment, and evaluator SHA-256; expected-versus-actual outcomes, safety, latency/throughput, and optional token cost; strict protocol-matched comparisons | Human review and access-controlled holdout storage remain prerequisites for official scores |
+| Benchmark runner | Auditable JSON reports with benchmark, environment, and evaluator SHA-256; expected-versus-actual outcomes, safety, latency/throughput, optional token cost, failure taxonomy, and scenario/locale breakdowns; strict protocol-matched comparisons | Human review and access-controlled holdout storage remain prerequisites for official scores |
+| Policy enforcement | Independent locale-neutral policy engine for verified orders, refund eligibility, customer intent, approval matching, idempotency, and replay protection | The current engine is a deterministic research policy, not a production authorization service |
+| Evaluation delivery | Markdown/HTML report renderer and CI regression gate for the deterministic baseline | Thresholds are not a substitute for native-speaker review, hidden tests, or customer-impact evidence |
 | Experimental model path | Optional LoRA fine-tuning and an OpenAI-compatible evaluation adapter | No claim of model quality, production safety, or customer impact |
 
 The current implementation is therefore a **working research foundation**, not a completed global platform. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md) and [Data licenses](docs/DATA_LICENSES.md) for the operational boundaries.
@@ -100,15 +102,15 @@ licensed data
 
 ### Current status and remaining gaps
 
-The repository already has approved-source importing with pinned revisions, provenance and deduplication; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable customer-service environment with Arabic, English, and French locale packs; locale-aware deterministic baselines; and an OpenAI-compatible evaluation adapter. The locale packs are synthetic development fixtures and are not yet native-speaker-validated public benchmarks. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md).
+The repository already has approved-source importing with pinned revisions, provenance and deduplication; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable customer-service environment with Arabic, English, and French locale packs; locale-aware deterministic baselines; an independent policy engine; an OpenAI-compatible evaluation adapter; publishable Markdown/HTML reports; and a CI regression gate. The locale packs are synthetic development fixtures and are not yet native-speaker-validated public benchmarks. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md).
 
-The highest-priority gaps are permissioned or partner data, native-speaker review for each locale, protected hidden test storage, dialect-specific task authoring, an independent policy engine, a review/annotation workflow, production regression data, cost and latency reporting, comparisons against real models, and customer pilots.
+The highest-priority gaps are permissioned or partner data, native-speaker review for each locale, protected hidden test storage, dialect-specific task authoring, a review/annotation workflow, production regression data, comparisons against real models, and customer pilots.
 
 ### Future delivery roadmap
 
-**Next 30 days:** obtain native-speaker review for the 24 public Arabic development cards; author a fresh holdout in access-controlled storage (never reuse task text previously committed to public Git history); add prompt-injection and tool-failure cases; separate the policy verifier; and publish versioned JSON reports.
+**Next 30 days:** obtain native-speaker review for the 24 public Arabic development cards; author a fresh holdout in access-controlled storage (never reuse task text previously committed to public Git history); add prompt-injection and tool-failure cases; strengthen policy reason-code auditing; and publish versioned JSON, Markdown, and HTML reports.
 
-**By 60 days:** author independent English and French task cards rather than relying on translated parity; add Arabic dialect profiles; implement annotation queues; add the multilingual red-team suite; record cost and latency; and block safety regressions in CI.
+**By 60 days:** author independent English and French task cards rather than relying on translated parity; add Arabic dialect profiles; implement annotation queues; expand the multilingual red-team suite; record cost and latency; and extend regression gates to reviewed language-specific baselines.
 
 **By 90 days:** secure the first data or pilot partner; collect rights-cleared workflow traces; connect production failures to benchmark tasks; publish a dashboard and a model-comparison report.
 

@@ -1,0 +1,23 @@
+{
+  "benchmark_id": "polyglot-ja-v1",
+  "language": "ja",
+  "source_language_tags": [
+    "ja"
+  ],
+  "status": "requires_native_speaker_authoring",
+  "license": "Apache-2.0",
+  "human_review_status": "unreviewed",
+  "task_schema": {
+    "required": [
+      "id",
+      "prompt",
+      "expected_behavior",
+      "success_condition",
+      "source",
+      "license",
+      "human_review_status"
+    ],
+    "privacy": "No real customer or personal data; use synthetic scenarios with clearly declared provenance."
+  },
+  "tasks": []
+}

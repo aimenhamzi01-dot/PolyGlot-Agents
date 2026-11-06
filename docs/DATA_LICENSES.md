@@ -14,6 +14,8 @@ This project is not a blanket license for collected data. Code is Apache-2.0. Ea
 
 The table is a starting point, not legal advice. The project currently has no automated legal clearance. `CC-BY-4.0`, `CC-BY-SA-4.0`, `CC0-1.0`, and `ODC-By-1.0` may permit reuse under conditions; attribution, ShareAlike, database rights, privacy rules, and source terms still matter. Do not pool incompatible items under a single dataset license. Keep exact source and license metadata on every record.
 
+The bundled OASST1 snapshot is a capped sample from the source tags that produced records after upstream review, deletion, synthetic-content, PII/spam, and contact-pattern checks. It does not represent worldwide language coverage. Each record keeps its source IDs, OASST1 dataset URL, Apache-2.0 identifier, human quality rating, and review basis. The language coverage report is descriptive of this repository snapshot and should be regenerated after data changes.
+
 ## Required record fields
 
 `source`, `source_url`, `license`, `license_url` (when available), `retrieved_at`, `lang_code`, `quality_score`, and `human_review_status` are mandatory. Preserve upstream IDs and attribution statements. Never replace an unknown license with `CC0` or the code license. Exclude records whose reuse status cannot be determined from the intended output.

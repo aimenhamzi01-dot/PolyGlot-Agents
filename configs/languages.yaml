@@ -1,0 +1,37 @@
+version: 1
+# Open catalog seed: this is not a whitelist. ISO 639-1 codes are preferred;
+# use registered ISO 639-3 codes when no alpha-2 code exists. Region/script tags
+# stay in record metadata and source_lang_tag, not in directory names.
+defaults:
+  low_confidence_action: needs_review
+  minimum_language_confidence: 0.55
+  quality_threshold: null # Calibrate from a native-speaker-reviewed set per language.
+  require_native_speaker_review: true
+  quality_is_cross_language_comparable: false
+languages:
+  ar: {name: Arabic, source_tags: [ar], scripts: [Arab], stage: foundation}
+  en: {name: English, source_tags: [en], scripts: [Latn], stage: foundation}
+  es: {name: Spanish, source_tags: [es], scripts: [Latn], stage: expansion}
+  ru: {name: Russian, source_tags: [ru], scripts: [Cyrl], stage: expansion}
+  zh: {name: Chinese, source_tags: [zh], scripts: [Hans, Hant], stage: expansion}
+  de: {name: German, source_tags: [de], scripts: [Latn], stage: expansion}
+  fr: {name: French, source_tags: [fr], scripts: [Latn], stage: expansion}
+  th: {name: Thai, source_tags: [th], scripts: [Thai], stage: expansion}
+  pt: {name: Portuguese, source_tags: [pt-BR], scripts: [Latn], stage: expansion}
+  ca: {name: Catalan, source_tags: [ca], scripts: [Latn], stage: expansion}
+  uk: {name: Ukrainian, source_tags: [uk-UA], scripts: [Cyrl], stage: expansion}
+  it: {name: Italian, source_tags: [it], scripts: [Latn], stage: expansion}
+  ja: {name: Japanese, source_tags: [ja], scripts: [Jpan], stage: expansion}
+  pl: {name: Polish, source_tags: [pl], scripts: [Latn], stage: expansion}
+  eu: {name: Basque, source_tags: [eu], scripts: [Latn], stage: expansion}
+  vi: {name: Vietnamese, source_tags: [vi], scripts: [Latn], stage: expansion}
+  hu: {name: Hungarian, source_tags: [hu], scripts: [Latn], stage: expansion}
+  da: {name: Danish, source_tags: [da], scripts: [Latn], stage: expansion}
+  tr: {name: Turkish, source_tags: [tr], scripts: [Latn], stage: expansion}
+  ko: {name: Korean, source_tags: [ko], scripts: [Hang], stage: expansion}
+  fi: {name: Finnish, source_tags: [fi], scripts: [Latn], stage: expansion}
+  id: {name: Indonesian, source_tags: [id], scripts: [Latn], stage: expansion}
+  cs: {name: Czech, source_tags: [cs], scripts: [Latn], stage: expansion}
+  sv: {name: Swedish, source_tags: [sv], scripts: [Latn], stage: expansion}
+# Additional ISO languages are accepted without adding a config entry. Each new
+# language should add a reviewed calibration profile and an evaluation card.

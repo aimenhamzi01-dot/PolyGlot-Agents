@@ -1,7 +1,7 @@
 {
   "benchmark_id": "polyglot-customer-service-en-v1",
   "language": "en",
-  "status": "planned",
+  "status": "requires_native_speaker_authoring",
   "note": "English scenario wording and a parallel Gymnasium environment are community follow-up work; do not treat this metadata file as a runnable benchmark yet.",
   "human_review_status": "unreviewed",
   "tasks": []

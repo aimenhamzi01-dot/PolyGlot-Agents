@@ -9,10 +9,13 @@ def score(row: dict) -> tuple[float, dict[str, float]]:
     text = row["text"].strip(); n = len(text)
     length = min(1.0, n / 400.0)
     alpha = sum(ch.isalpha() for ch in text) / max(1, n)
-    words = text.split(); unique = len(set(words)) / max(1, len(words))
+    # Character bigrams avoid assuming that a language separates words with spaces.
+    compact = "".join(ch for ch in text.casefold() if not ch.isspace())
+    grams = [compact[i:i+2] for i in range(max(1, len(compact)-1))] if compact else []
+    unique = len(set(grams)) / max(1, len(grams))
     repeated = 1.0 if not re.search(r"(.)\1{5,}", text) else 0.0
     metadata = 1.0 if all(row.get(k) for k in ("source", "source_url", "license", "lang_code")) else 0.0
-    components = {"length": round(length, 4), "alphabetic_ratio": round(alpha, 4), "lexical_diversity": round(unique, 4), "repetition": repeated, "provenance": metadata}
+    components = {"length": round(length, 4), "alphabetic_ratio": round(alpha, 4), "character_bigram_diversity": round(unique, 4), "repetition": repeated, "provenance": metadata}
     value = 0.20*length + 0.20*alpha + 0.20*unique + 0.10*repeated + 0.30*metadata
     return round(value, 4), components
 

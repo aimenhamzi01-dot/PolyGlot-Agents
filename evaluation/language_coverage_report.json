@@ -1,0 +1,603 @@
+{
+  "schema_version": 1,
+  "languages": {
+    "ar": {
+      "records": 32,
+      "unique_exact_texts": 31,
+      "exact_duplicate_rate": 0.03125,
+      "quality_score": {
+        "n": 32,
+        "mean": 0.527995,
+        "median": 0.53125,
+        "min": 0.08333333333333333,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 32
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 32
+      },
+      "source_language_tags": {
+        "ar": 32
+      },
+      "review_required": 0
+    },
+    "ca": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.960625,
+        "median": 1.0,
+        "min": 0.9166666666666666,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "ca": 100
+      },
+      "review_required": 0
+    },
+    "cs": {
+      "records": 3,
+      "unique_exact_texts": 3,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 3,
+        "mean": 0.888889,
+        "median": 0.916667,
+        "min": 0.8333333333333334,
+        "max": 0.9166666666666666
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 3
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 3
+      },
+      "source_language_tags": {
+        "cs": 3
+      },
+      "review_required": 0
+    },
+    "da": {
+      "records": 33,
+      "unique_exact_texts": 33,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 33,
+        "mean": 0.686869,
+        "median": 0.75,
+        "min": 0.16666666666666666,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 33
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 33
+      },
+      "source_language_tags": {
+        "da": 33
+      },
+      "review_required": 0
+    },
+    "de": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "de": 100
+      },
+      "review_required": 0
+    },
+    "en": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "en": 100
+      },
+      "review_required": 0
+    },
+    "es": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "es": 100
+      },
+      "review_required": 0
+    },
+    "eu": {
+      "records": 100,
+      "unique_exact_texts": 99,
+      "exact_duplicate_rate": 0.01,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.910417,
+        "median": 0.916667,
+        "min": 0.75,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "eu": 100
+      },
+      "review_required": 0
+    },
+    "fi": {
+      "records": 10,
+      "unique_exact_texts": 10,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 10,
+        "mean": 0.710417,
+        "median": 0.708333,
+        "min": 0.4375,
+        "max": 0.9166666666666666
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 10
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 10
+      },
+      "source_language_tags": {
+        "fi": 10
+      },
+      "review_required": 0
+    },
+    "fr": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "fr": 100
+      },
+      "review_required": 0
+    },
+    "hu": {
+      "records": 44,
+      "unique_exact_texts": 44,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 44,
+        "mean": 0.597538,
+        "median": 0.666667,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 44
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 44
+      },
+      "source_language_tags": {
+        "hu": 44
+      },
+      "review_required": 0
+    },
+    "id": {
+      "records": 5,
+      "unique_exact_texts": 5,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 5,
+        "mean": 0.383333,
+        "median": 0.416667,
+        "min": 0.0,
+        "max": 0.5833333333333334
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 5
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 5
+      },
+      "source_language_tags": {
+        "id": 5
+      },
+      "review_required": 0
+    },
+    "it": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.828958,
+        "median": 0.833333,
+        "min": 0.6666666666666666,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "it": 100
+      },
+      "review_required": 0
+    },
+    "ja": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.839167,
+        "median": 0.833333,
+        "min": 0.6666666666666666,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "ja": 100
+      },
+      "review_required": 0
+    },
+    "ko": {
+      "records": 12,
+      "unique_exact_texts": 12,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 12,
+        "mean": 0.645833,
+        "median": 0.708333,
+        "min": 0.3333333333333333,
+        "max": 0.9166666666666666
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 12
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 12
+      },
+      "source_language_tags": {
+        "ko": 12
+      },
+      "review_required": 0
+    },
+    "pl": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.731042,
+        "median": 0.75,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "pl": 100
+      },
+      "review_required": 0
+    },
+    "pt": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.973958,
+        "median": 1.0,
+        "min": 0.9166666666666666,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "pt-BR": 100
+      },
+      "review_required": 0
+    },
+    "ru": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "ru": 100
+      },
+      "review_required": 0
+    },
+    "th": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.960208,
+        "median": 1.0,
+        "min": 0.9166666666666666,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "th": 100
+      },
+      "review_required": 0
+    },
+    "tr": {
+      "records": 22,
+      "unique_exact_texts": 22,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 22,
+        "mean": 0.556818,
+        "median": 0.583333,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 22
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 22
+      },
+      "source_language_tags": {
+        "tr": 22
+      },
+      "review_required": 0
+    },
+    "uk": {
+      "records": 100,
+      "unique_exact_texts": 100,
+      "exact_duplicate_rate": 0.0,
+      "quality_score": {
+        "n": 100,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "uk-UA": 100
+      },
+      "review_required": 0
+    },
+    "vi": {
+      "records": 100,
+      "unique_exact_texts": 99,
+      "exact_duplicate_rate": 0.01,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.768958,
+        "median": 0.75,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "vi": 100
+      },
+      "review_required": 0
+    },
+    "zh": {
+      "records": 100,
+      "unique_exact_texts": 99,
+      "exact_duplicate_rate": 0.01,
+      "quality_score": {
+        "n": 100,
+        "mean": 0.950208,
+        "median": 0.916667,
+        "min": 0.9166666666666666,
+        "max": 1.0
+      },
+      "language_confidence": {
+        "n": 0,
+        "mean": null
+      },
+      "human_review_status": {
+        "reviewed": 100
+      },
+      "sources": {
+        "OpenAssistant/oasst1": 100
+      },
+      "source_language_tags": {
+        "zh": 100
+      },
+      "review_required": 0
+    }
+  }
+}

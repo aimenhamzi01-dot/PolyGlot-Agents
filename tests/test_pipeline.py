@@ -20,5 +20,9 @@ class PipelineTests(unittest.TestCase):
     def test_quality_score_bounded_and_provenance_weighted(self):
         value, parts=score(BASE); self.assertGreaterEqual(value,0); self.assertLessEqual(value,1); self.assertEqual(parts['provenance'],1.0)
         value2,_=score({"text":BASE['text']}); self.assertLess(value2,value)
+    def test_filter_supports_per_language_profiles(self):
+        row=dict(BASE,text='A sufficiently long sample for generic filtering.',lang_code='fr')
+        kept,reason=screen(row,language_profiles={'fr':{'min_characters':100}},default_min_chars=10)
+        self.assertIsNone(kept); self.assertEqual(reason,'too_short')
 
 if __name__=='__main__': unittest.main()

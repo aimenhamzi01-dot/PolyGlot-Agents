@@ -1,11 +1,13 @@
 # Screening defaults only; calibrate separately for each language and source.
 min_characters: 40
 max_characters: 20000
-min_quality_score: 0.35
 min_language_confidence: 0.55
 remove_urls: false
 remove_emails: true
 remove_phone_numbers: true
+language_profiles: {}
+# Add per-language overrides only after reviewing a language-specific sample.
+# Example: language_profiles: { zh: {min_characters: 20} }
 allowed_licenses:
   - CC0-1.0
   - CC-BY-4.0

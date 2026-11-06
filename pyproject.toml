@@ -40,6 +40,7 @@ polyglot-check-regression = "evaluation.check_regression:main"
 polyglot-review-queue = "scripts.review_queue:main"
 polyglot-rights-lifecycle = "scripts.rights_lifecycle:main"
 polyglot-release-manifest = "evaluation.release_manifest:main"
+polyglot-coverage-dashboard = "evaluation.coverage_dashboard:main"
 
 [tool.setuptools.packages.find]
 include = ["environments*", "evaluation*", "scripts*", "pipelines*"]

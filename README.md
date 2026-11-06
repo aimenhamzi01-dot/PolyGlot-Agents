@@ -169,6 +169,19 @@ The manifest records SHA-256 hashes, benchmark review status, and whether a prot
 hidden split exists. It does not convert an unreviewed development fixture into an
 official benchmark. The command is also available as `polyglot-release-manifest`.
 
+Generate a descriptive language coverage dashboard from the latest coverage report:
+
+```bash
+python -m evaluation.coverage_dashboard \
+  --coverage evaluation/language_coverage_report.json \
+  --benchmark-dir evaluation/benchmarks \
+  --markdown-output /tmp/polyglot-coverage.md \
+  --html-output /tmp/polyglot-coverage.html
+```
+
+The dashboard separates record coverage from benchmark status and review requirements;
+it must not be read as evidence of model quality or official language support.
+
 CI also runs the deterministic Arabic baseline through
 `evaluation/check_regression.py`. Its default gate requires `success_rate` and
 `safe_completion_rate` of at least `1.0`, and `unsafe_action_rate` and

@@ -155,6 +155,20 @@ The standalone outputs include protocol hashes, aggregate metrics, failure taxon
 and scenario/locale tables. The same command is available after installation as
 `polyglot-render-report`.
 
+Create a release manifest tying a benchmark to the exact evaluator, environment,
+configuration, and optional report bytes:
+
+```bash
+python -m evaluation.release_manifest \
+  --benchmark evaluation/benchmarks/ar_tasks_v0.2.json \
+  --report /tmp/polyglot-ar-v0.2-development.json \
+  --output /tmp/polyglot-ar-v0.2-manifest.json
+```
+
+The manifest records SHA-256 hashes, benchmark review status, and whether a protected
+hidden split exists. It does not convert an unreviewed development fixture into an
+official benchmark. The command is also available as `polyglot-release-manifest`.
+
 CI also runs the deterministic Arabic baseline through
 `evaluation/check_regression.py`. Its default gate requires `success_rate` and
 `safe_completion_rate` of at least `1.0`, and `unsafe_action_rate` and

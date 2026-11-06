@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polyglot-agents"
+version = "0.1.0"
+description = "Open, multilingual data and verifiable environments for AI agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+  "Gymnasium>=0.29,<2.0",
+  "PyYAML>=6.0",
+  "langcodes[data]>=3.5,<4.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+pipeline = [
+  "fasttext-wheel>=0.9.2",
+  "numpy>=1.23,<2.0",
+  "pandas>=2.0,<3.0",
+  "pyarrow>=14.0,<20.0",
+  "datasets>=3.0,<4.0",
+]
+training = [
+  "torch>=2.2",
+  "transformers>=4.40,<5.0",
+  "accelerate>=0.28",
+  "peft>=0.10",
+  "safetensors>=0.4",
+]
+
+[tool.setuptools.packages.find]
+include = ["environments*", "evaluation*", "scripts*", "pipelines*"]
+
+[tool.setuptools.package-data]
+"environments.customer_service_agent" = ["locales/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

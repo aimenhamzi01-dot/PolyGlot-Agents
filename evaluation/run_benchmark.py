@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Run verifiable agent episodes and write an auditable benchmark report."""
 from __future__ import annotations
-
 import argparse
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
 import json
+import math
 import os
 import re
-from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+import time
 from typing import Any
 
 try:
@@ -91,16 +93,18 @@ class RuleBasedArabicAgent(RuleBasedAgent):
         super().__init__(locale="ar")
 
 
-def load_tasks(path: Path, split: str | None = None) -> list[dict]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload.get("tasks"), list) or not payload["tasks"]:
-        raise ValueError(f"benchmark contains no tasks: {path}")
-    tasks = payload["tasks"]
+def select_tasks(tasks: Any, split: str | None = None, source: str = "benchmark") -> list[dict]:
+    if not isinstance(tasks, list) or not tasks:
+        raise ValueError(f"benchmark contains no tasks: {source}")
+    if any(not isinstance(task, dict) for task in tasks):
+        raise ValueError(f"every task must be an object: {source}")
     ids = [task.get("id") for task in tasks]
-    if any(not task.get("id") or not task.get("scenario_id") for task in tasks):
-        raise ValueError(f"every task must have id and scenario_id: {path}")
+    if any(not isinstance(task.get("id"), str) or not task.get("id")
+           or not isinstance(task.get("scenario_id"), str) or not task.get("scenario_id")
+           for task in tasks):
+        raise ValueError(f"every task must have string id and scenario_id: {source}")
     if len(ids) != len(set(ids)):
-        raise ValueError(f"task ids must be unique: {path}")
+        raise ValueError(f"task ids must be unique: {source}")
     if split is None:
         return tasks
     if split not in {"development", "hidden", "all"}:
@@ -108,15 +112,67 @@ def load_tasks(path: Path, split: str | None = None) -> list[dict]:
     return tasks if split == "all" else [task for task in tasks if task.get("split", "development") == split]
 
 
+def load_tasks(path: Path, split: str | None = None) -> list[dict]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"benchmark root must be an object: {path}")
+    return select_tasks(payload.get("tasks"), split=split, source=str(path))
+
+
+def environment_bundle_sha256() -> str:
+    """Fingerprint the environment implementation and all locale packs."""
+    root = Path(__file__).resolve().parents[1] / "environments" / "customer_service_agent"
+    files = sorted(path for path in root.rglob("*") if path.is_file() and path.suffix in {".py", ".yaml"})
+    digest = hashlib.sha256()
+    for path in files:
+        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _usage_metrics(call_usages: list[dict[str, int] | None]) -> dict[str, Any]:
+    reported = [usage for usage in call_usages if isinstance(usage, dict) and usage]
+    token_usage = {
+        key: sum(usage[key] for usage in reported if key in usage)
+        for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+        if any(key in usage for usage in reported)
+    }
+    complete_calls = sum(
+        "prompt_tokens" in usage and "completion_tokens" in usage
+        for usage in reported
+    )
+    return {
+        "agent_usage_calls": len(reported),
+        "agent_usage_complete_calls": complete_calls,
+        "agent_token_usage": token_usage or None,
+    }
+
+
 def run_task(agent: Any, task: dict, seed: int, step_budget: int, locale: str = "ar") -> dict:
     env = CustomerServiceEnv(episode_step_budget=step_budget, locale=locale)
     observation, _ = env.reset(seed=seed, options={"scenario_id": task["scenario_id"]})
     total_reward = 0.0
     terminated = truncated = False
-    error = None
+    action_latencies_ms: list[float] = []
+    action_errors = 0
+    call_usages: list[dict[str, int] | None] = []
     try:
         while not terminated and not truncated:
-            action = agent.act(observation)
+            started_ns = time.perf_counter_ns()
+            try:
+                action = agent.act(observation)
+            except Exception:
+                action_errors += 1
+                raise
+            finally:
+                action_latencies_ms.append((time.perf_counter_ns() - started_ns) / 1_000_000)
+                usage_getter = getattr(agent, "get_last_call_usage", None)
+                try:
+                    call_usages.append(usage_getter() if callable(usage_getter) else None)
+                except Exception:
+                    call_usages.append(None)
             observation, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
         result = {
@@ -125,23 +181,79 @@ def run_task(agent: Any, task: dict, seed: int, step_budget: int, locale: str = 
             "category": task.get("category", "unspecified"),
             "success": bool(info.get("is_success")),
             "safety_violations": info.get("safety_violations", 0),
+            "unsupported_claims": info.get("unsupported_claims", 0),
             "tool_calls": info.get("episode_steps", 0), "truncated": bool(truncated),
             "reward": round(total_reward, 6), "reward_components": info.get("reward_components", {}),
             "event_log": info.get("event_log", []),
+            "agent_action_calls": len(action_latencies_ms),
+            "agent_action_errors": action_errors,
+            "agent_action_latency_ms": action_latencies_ms,
+            **_usage_metrics(call_usages),
         }
     except Exception as exc:  # keep one broken adapter/task from hiding all results
-        error = f"{type(exc).__name__}: {exc}"
         result = {"task_id": task["id"], "scenario_id": task["scenario_id"],
-                  "split": task.get("split", "development"), "success": False, "error": error}
+                  "split": task.get("split", "development"), "success": False,
+                  "error": f"{type(exc).__name__}: {exc}",
+                  "unsupported_claims": 0,
+                  "agent_action_calls": len(action_latencies_ms),
+                  "agent_action_errors": action_errors,
+                  "agent_action_latency_ms": action_latencies_ms,
+                  **_usage_metrics(call_usages)}
     finally:
         env.close()
     return result
 
 
-def aggregate(results: list[dict]) -> dict:
+def _percentile(values: list[float], percentile: float) -> float:
+    """Return a deterministic nearest-rank percentile without extra dependencies."""
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = max(0, math.ceil(percentile * len(ordered)) - 1)
+    return round(ordered[index], 6)
+
+
+def aggregate(results: list[dict], elapsed_seconds: float | None = None,
+              input_price_per_million_tokens: float | None = None,
+              output_price_per_million_tokens: float | None = None) -> dict:
     count = len(results)
     successful = sum(bool(row.get("success")) for row in results)
     safe = sum(bool(row.get("success")) and row.get("safety_violations", 0) == 0 for row in results)
+    action_latencies = [
+        float(latency)
+        for row in results
+        for latency in row.get("agent_action_latency_ms", [])
+    ]
+    action_errors = sum(int(row.get("agent_action_errors", 0)) for row in results)
+    unsupported_claims = sum(int(row.get("unsupported_claims", 0)) for row in results)
+    final_response_attempts = sum(
+        event.get("tool") == "send_response"
+        for row in results
+        for event in row.get("event_log", [])
+    )
+    agent_action_calls = sum(
+        int(row.get("agent_action_calls", len(row.get("agent_action_latency_ms", []))))
+        for row in results
+    )
+    reported_usage_calls = sum(int(row.get("agent_usage_calls", 0)) for row in results)
+    complete_usage_calls = sum(int(row.get("agent_usage_complete_calls", 0)) for row in results)
+    usage_rows = [row.get("agent_token_usage") for row in results if isinstance(row.get("agent_token_usage"), dict)]
+    token_usage = {
+        key: sum(int(usage.get(key, 0)) for usage in usage_rows if key in usage)
+        for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+        if any(key in usage for usage in usage_rows)
+    }
+    token_usage_complete = agent_action_calls > 0 and complete_usage_calls == agent_action_calls
+    pricing_supplied = input_price_per_million_tokens is not None and output_price_per_million_tokens is not None
+    cost_is_available = pricing_supplied and token_usage_complete and {
+        "prompt_tokens", "completion_tokens"
+    }.issubset(token_usage)
+    estimated_cost = None
+    if cost_is_available:
+        estimated_cost = (
+            token_usage["prompt_tokens"] * input_price_per_million_tokens
+            + token_usage["completion_tokens"] * output_price_per_million_tokens
+        ) / 1_000_000
     return {
         "tasks": count,
         "success_rate": round(successful / count, 6) if count else 0.0,
@@ -151,9 +263,46 @@ def aggregate(results: list[dict]) -> dict:
         "mean_tool_calls": round(sum(row.get("tool_calls", 0) for row in results) / count, 6) if count else 0.0,
         "mean_reward": round(sum(row.get("reward", 0.0) for row in results) / count, 6) if count else 0.0,
         "safety_violations": sum(row.get("safety_violations", 0) for row in results),
+        "unsupported_claims": unsupported_claims,
+        "final_response_attempts": final_response_attempts,
+        "unsupported_claim_rate": round(unsupported_claims / final_response_attempts, 6) if final_response_attempts else 0.0,
         "successful_tasks": successful,
         "safe_tasks": safe,
+        "agent_action_calls": len(action_latencies),
+        "agent_action_errors": action_errors,
+        "agent_action_error_rate": round(action_errors / len(action_latencies), 6) if action_latencies else 0.0,
+        "mean_agent_action_latency_ms": round(sum(action_latencies) / len(action_latencies), 6) if action_latencies else 0.0,
+        "p50_agent_action_latency_ms": _percentile(action_latencies, 0.50),
+        "p95_agent_action_latency_ms": _percentile(action_latencies, 0.95),
+        "p99_agent_action_latency_ms": _percentile(action_latencies, 0.99),
+        "max_agent_action_latency_ms": round(max(action_latencies), 6) if action_latencies else 0.0,
+        "benchmark_elapsed_seconds": round(elapsed_seconds, 6) if elapsed_seconds is not None else None,
+        "tasks_per_second": round(count / elapsed_seconds, 6) if elapsed_seconds and elapsed_seconds > 0 else None,
+        "agent_actions_per_second": round(len(action_latencies) / elapsed_seconds, 6) if elapsed_seconds and elapsed_seconds > 0 else None,
+        "reported_token_usage_calls": reported_usage_calls,
+        "complete_token_usage_calls": complete_usage_calls,
+        "token_usage_complete": token_usage_complete,
+        "agent_token_usage": token_usage or None,
+        "estimated_cost": round(estimated_cost, 12) if estimated_cost is not None else None,
+        "estimated_cost_per_successful_task": round(estimated_cost / successful, 12) if estimated_cost is not None and successful else None,
     }
+
+
+def run_tasks(agent: Any, tasks: list[dict], seed: int, step_budget: int,
+              locale: str = "ar", concurrency: int = 1) -> list[dict]:
+    """Run independent episodes with bounded parallelism, retaining input order."""
+    if concurrency < 1:
+        raise ValueError("concurrency must be at least 1")
+
+    def execute(indexed_task: tuple[int, dict]) -> dict:
+        index, task = indexed_task
+        return run_task(agent, task, seed + index, step_budget, locale=locale)
+
+    indexed_tasks = enumerate(tasks)
+    if concurrency == 1:
+        return [execute(item) for item in indexed_tasks]
+    with ThreadPoolExecutor(max_workers=concurrency, thread_name_prefix="polyglot-benchmark") as executor:
+        return list(executor.map(execute, indexed_tasks))
 
 
 def main() -> None:
@@ -170,22 +319,46 @@ def main() -> None:
     parser.add_argument("--locale", default="ar", help="Locale pack to evaluate, e.g. ar, en, or fr")
     parser.add_argument("--api-key", default="", help="API key; prefer POLYGLOT_AGENT_API_KEY")
     parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument("--concurrency", type=int, default=1,
+                        help="Maximum number of independent episodes running at once")
+    parser.add_argument("--input-price-per-million-tokens", type=float,
+                        help="Optional provider input-token price for a cost estimate")
+    parser.add_argument("--output-price-per-million-tokens", type=float,
+                        help="Optional provider output-token price for a cost estimate")
+    parser.add_argument("--price-currency", default="USD",
+                        help="Currency for the explicitly supplied token prices")
     args = parser.parse_args()
     if args.step_budget < 1:
         parser.error("--step-budget must be positive")
-    payload = json.loads(args.benchmark.read_text(encoding="utf-8"))
-    tasks = load_tasks(args.benchmark, split=args.split)
+    if args.concurrency < 1:
+        parser.error("--concurrency must be at least 1")
+    prices = (args.input_price_per_million_tokens, args.output_price_per_million_tokens)
+    if any(price is not None for price in prices) and any(price is None for price in prices):
+        parser.error("provide both input and output token prices, or neither")
+    if any(price is not None and (not math.isfinite(price) or price < 0) for price in prices):
+        parser.error("token prices must be finite and non-negative")
+    benchmark_bytes = args.benchmark.read_bytes()
+    payload = json.loads(benchmark_bytes.decode("utf-8"))
+    if not isinstance(payload, dict):
+        parser.error("benchmark root must be a JSON object")
+    benchmark_sha256 = hashlib.sha256(benchmark_bytes).hexdigest()
+    tasks = select_tasks(payload.get("tasks"), split=args.split, source=str(args.benchmark))
     if not tasks:
         parser.error(f"benchmark split has no tasks: {args.split}")
     if args.agent == "openai-compatible":
         agent = OpenAICompatibleAgent(args.base_url, args.model, args.api_key or os.getenv("POLYGLOT_AGENT_API_KEY", ""), args.timeout)
     else:
         agent = RuleBasedAgent(locale=args.locale)
-    results = [run_task(agent, task, args.seed + index, args.step_budget, locale=args.locale) for index, task in enumerate(tasks)]
+    started_ns = time.perf_counter_ns()
+    results = run_tasks(agent, tasks, args.seed, args.step_budget,
+                        locale=args.locale, concurrency=args.concurrency)
+    elapsed_seconds = (time.perf_counter_ns() - started_ns) / 1_000_000_000
     report = {
         "schema_version": 1,
         "benchmark_id": payload.get("benchmark_id"),
         "benchmark_version": payload.get("benchmark_version"),
+        "benchmark_sha256": benchmark_sha256,
+        "environment_sha256": environment_bundle_sha256(),
         "language": payload.get("language"),
         "locale": args.locale,
         "environment": payload.get("environment"),
@@ -196,7 +369,18 @@ def main() -> None:
         "created_at": datetime.now(timezone.utc).isoformat(),
         "seed": args.seed,
         "step_budget": args.step_budget,
-        "aggregate": aggregate(results),
+        "concurrency": args.concurrency,
+        "token_pricing": {
+            "input_per_million_tokens": args.input_price_per_million_tokens,
+            "output_per_million_tokens": args.output_price_per_million_tokens,
+            "currency": args.price_currency,
+        } if args.input_price_per_million_tokens is not None else None,
+        "aggregate": aggregate(
+            results,
+            elapsed_seconds=elapsed_seconds,
+            input_price_per_million_tokens=args.input_price_per_million_tokens,
+            output_price_per_million_tokens=args.output_price_per_million_tokens,
+        ),
         "results": results,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

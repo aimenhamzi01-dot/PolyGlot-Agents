@@ -20,9 +20,9 @@ The following capabilities exist in the repository today and can be inspected or
 |---|---|---|
 | Multilingual data pipeline | ISO language normalization, language detection, filtering, deduplication, quality scoring, provenance, and per-language reports | Detection and thresholds are finite; language quality still needs native-speaker calibration |
 | Rights-gated ingestion | Pinned-source connectors for OASST1 and Aya, fail-closed rights metadata checks, PII/contact screening, reject reports, duplicate reports, and SHA-256 manifests | The rights gate checks declared evidence; it is not automated legal clearance |
-| Language-neutral environment | Shared customer-service engine with Arabic, English, and French locale packs | Locale packs are synthetic development fixtures, not reviewed public benchmarks |
+| Language-neutral environment | Shared Arabic/English/French engine with intent-gated refunds, approval checks, replay protection, and evidence-grounded final claims | Locale packs are synthetic development fixtures, not reviewed public benchmarks |
 | Executable evaluation | 30 deterministic Arabic scenarios, 24 development cards, 6 hidden-test placeholders, safe tool contracts, rewards, event logs, and a rule-based baseline | Hidden tests are not yet protected maintainer data; scenarios are not native-speaker validated |
-| Benchmark runner | JSON reports with success, safe completion, unsafe actions, truncation, tool calls, rewards, and event logs; locale selection for `ar`, `en`, and `fr` | Model comparison, latency, cost, and unsupported-claim metrics are incomplete |
+| Benchmark runner | Auditable JSON reports with benchmark and environment-bundle SHA-256, success, safety, latency/throughput, and optional token cost; strict protocol-matched comparisons | Automatic provider pricing, protected public benchmarks, and cross-language validation remain incomplete |
 | Experimental model path | Optional LoRA fine-tuning and an OpenAI-compatible evaluation adapter | No claim of model quality, production safety, or customer impact |
 
 The current implementation is therefore a **working research foundation**, not a completed global platform. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md) and [Data licenses](docs/DATA_LICENSES.md) for the operational boundaries.
@@ -244,6 +244,21 @@ python scripts/auto_import.py --limit-per-language 100
 python -m unittest discover -s tests -v
 ```
 
+### Development install and tests
+
+For the executable environments, language registry, and test suite, install the project in editable mode with its test dependencies:
+
+```bash
+python -m pip install -e ".[test]"
+python -m pytest -q
+```
+
+The larger ingestion stack is optional; install it with `python -m pip install -e ".[pipeline]"` when using fastText or the Hugging Face dataset importers. Model-training dependencies remain separate and can be installed with `python -m pip install -e ".[training]"`. GitHub Actions runs the tests on Python 3.10, 3.11, and 3.12 and checks the repository's JSON/YAML files.
+
+`tests/test_benchmark_stress.py` adds offline load checks: it loads 10,000 benchmark cards, runs 1,000 deterministic customer-service episodes while checking success and safety, and verifies order-ID extraction from a customer message larger than 1 MB. The timing assertions are intentionally generous regression limits; these tests exercise the local rule-based baseline and do not call external model APIs.
+
+`tests/test_redteam_safety.py` checks Arabic, English, and French instruction-injection attempts against the refund tools, fake/replayed approvals, customer-intent enforcement, and contradictory status claims. These tests validate deterministic environment safeguards; they do not establish that an external model resists prompt injection.
+
 `lang_id.py` uses fastText's language-identification model and normalizes predictions to ISO 639-1 when available, otherwise ISO 639-3. It downloads the official model to a local cache on first run; alternatively, pass `--model /path/to/lid.176.ftz`. Low-confidence results and declared/detected conflicts are marked `needs_review`; the input language tag is preserved. Unlabelled input is routed to review by default; `--auto-accept-unlabelled` is an opt-in for workflows that accept the finite detector's risk. fastText lid.176 has finite coverage and is not a universal language oracle. If a trusted source tag is outside detector coverage, the tag is retained instead of replacing it with a guess. Licensed data for languages it does not confidently detect can still be imported using a verified source tag.
 
 ### Open language registry
@@ -273,7 +288,7 @@ If `--data` is omitted, the script searches `datasets/incoming/*/curated/*/sft/a
 
 ### Customer-service environment
 
-The customer-service Gymnasium environment is an executable multi-step simulation with structured tool calls, hidden ground-truth state, a rule-based final verifier, bounded reward components, safety penalties, reproducible event logs, a step budget, and locale packs for Arabic, English, and French. Its 30 synthetic scenarios cover status lookup, refunds, missing information, escalation, ineligible/duplicate refunds, privacy-safe refusal, and transient tool failure. It performs no real customer or payment actions. Keep trainer-side `info` fields out of the agent observation. Run the end-to-end refund episode with:
+The customer-service Gymnasium environment is an executable multi-step simulation with structured tool calls, hidden ground-truth state, a rule-based final verifier, bounded reward components, safety penalties, reproducible event logs, a step budget, and locale packs for Arabic, English, and French. Refund approval now requires both an eligible order and explicit refund intent in the scenario; duplicate/replayed refunds are rejected. Final status/refund/escalation claims are checked against state, contradictory status labels are rejected, and unsupported claims are marked in the event log. Its 30 synthetic scenarios cover status lookup, refunds, missing information, escalation, ineligible/duplicate refunds, privacy-safe refusal, and transient tool failure. It performs no real customer or payment actions. Keep trainer-side `info` fields out of the agent observation. Run the end-to-end refund episode with:
 
 ```bash
 python -m environments.customer_service_agent.demo
@@ -289,7 +304,7 @@ Run the locale-aware deterministic baseline over every development task and writ
 python evaluation/run_benchmark.py --locale ar --output /tmp/polyglot-benchmark-report.json
 ```
 
-The report includes task success, safe completion, unsafe-action rate, truncation rate, tool-call count, reward and the full event log. The baseline is intentionally inspectable and is not an LLM score; use it as a sanity check before adding model adapters. The current development fixture produces 24 successful, safe episodes with the baseline in each of the three available locale packs, but it is not yet a native-speaker-validated public benchmark.
+The report includes task success, safe completion, unsafe-action rate, unsupported-claim count/rate, truncation rate, tool-call count, reward, per-action timing/token usage where available, and the full event log. The baseline is intentionally inspectable and is not an LLM score; use it as a sanity check before adding model adapters. The current development fixture produces 24 successful, safe episodes with the baseline in each of the three available locale packs, but it is not yet a native-speaker-validated public benchmark.
 
 To evaluate a deployed vLLM/FastAPI model through its OpenAI-compatible endpoint:
 
@@ -303,6 +318,25 @@ python evaluation/run_benchmark.py \
 ```
 
 The adapter sends only the current observation and available tool names, requires a strict JSON action, and records parsing/API failures as failed tasks. The gateway should be reachable over TLS in production. Never pass customer credentials or real tool secrets to the model; this benchmark uses the synthetic environment only.
+
+Each task records `agent_action_latency_ms` for every `agent.act()` call. The aggregate reports mean, p50, p95, p99, maximum, error rate, benchmark wall time, and tasks/actions per second. These are client-observed action latencies—including network, provider queueing, generation, and response parsing—not provider-internal GPU time. Use `--concurrency 4` to run up to four independent episodes simultaneously; steps within an episode remain sequential. Start with concurrency `1` and increase gradually to respect provider rate limits.
+
+When the compatible API returns usage metadata, reports also include prompt, completion, and total tokens per task and for the run. Cost remains opt-in: supply both `--input-price-per-million-tokens` and `--output-price-per-million-tokens` using the rates applicable to your provider/model, and optionally set `--price-currency`. The runner estimates total cost and cost per successful task only when every model action has complete prompt/completion counts; otherwise the estimate is `null`, not zero. Prices are not fetched automatically and the estimate may not reflect provider-specific cached-token or other billing rules.
+
+### Protocol-matched model comparison
+
+Every benchmark report includes SHA-256 hashes of both the benchmark file and the customer-service environment/locale bundle. To compare models, first run each model with the same benchmark file, environment bundle, split, locale, seed, step budget, and concurrency. Then generate a side-by-side scorecard:
+
+```bash
+python evaluation/compare_reports.py \
+  --report baseline=/tmp/baseline-report.json \
+  --report ollama=/tmp/ollama-report.json \
+  --report openai=/tmp/openai-report.json \
+  --output /tmp/model-comparison.json \
+  --markdown-output /tmp/model-comparison.md
+```
+
+The comparator fails closed if protocol fields, benchmark content, or environment-bundle hashes differ, and rejects cost comparisons across currencies. The first report is the delta reference. It reports quality, safety, latency, throughput, and cost separately—there is no opaque composite score or automatic “winner.”
 
 ### Importing real source data
 

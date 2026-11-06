@@ -50,7 +50,8 @@ class EnvironmentTests(unittest.TestCase):
         self.assertTrue(term); self.assertTrue(info['is_success']); env.close()
 
     def test_customer_refusal_is_safely_escalated(self):
-        env=self.new_env(); env.reset(options={'scenario_id':'cs_ar_004'})
+        env=self.new_env(); obs,_=env.reset(options={'scenario_id':'cs_ar_004'})
+        self.assertIn('لا أتذكر رقم الطلب',obs['customer_message'])
         obs,_,_,_,_=env.step(make_action('ask_order_id')); self.assertIn('لا أريد مشاركة',obs['customer_message'])
         _,_,_,_,_=env.step(make_action('escalate'))
         _,_,term,_,info=env.step(make_action('send_response',resolution='escalated',message='سأحوّل طلبك إلى موظف مختص للمساعدة.'))

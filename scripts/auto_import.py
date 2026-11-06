@@ -55,7 +55,9 @@ def source_rows(name: str, cfg: dict, limit: int | None) -> dict[str, list[dict]
     kind = cfg.get("kind")
     if kind == "oasst1":
         by_tag: dict[str, dict] = defaultdict(dict)
-        for row in __import__("scripts.import_oasst", fromlist=["load_source"]).load_source():
+        for row in __import__("scripts.import_oasst", fromlist=["load_source"]).load_source(
+            revision=cfg.get("revision")
+        ):
             tag = row.get("lang")
             if tag and row.get("role") in ("prompter", "assistant"):
                 by_tag[tag][row["message_id"]] = dict(row)
@@ -151,6 +153,9 @@ def main() -> None:
             raise SystemExit(f"{name}: pinned revision is required for reproducible imports")
         imported = source_rows(name, cfg, args.limit_per_language)
         imported_rows = [enrich_record(row, language_registry) for rows in imported.values() for row in rows]
+        if cfg.get("kind") == "oasst1":
+            for row in imported_rows:
+                row["source_revision"] = cfg["revision"]
         imported = defaultdict(list)
         for row in imported_rows:
             imported[row["lang_code"]].append(row)

@@ -51,17 +51,20 @@ def make_pair(prompt: dict, answer: dict, lang_code: str, source_tag: str) -> di
     }
 
 
-def load_source():
+def load_source(revision: str | None = None):
     try:
         from datasets import load_dataset
     except ImportError as exc:
         raise SystemExit("Install dependencies: pip install -r scripts/requirements.txt") from exc
-    return load_dataset(SOURCE, split="train", streaming=True)
+    kwargs = {"split": "train", "streaming": True}
+    if revision:
+        kwargs["revision"] = revision
+    return load_dataset(SOURCE, **kwargs)
 
 
-def collect_messages(source_tag: str | None = None) -> dict[str, dict]:
+def collect_messages(source_tag: str | None = None, revision: str | None = None) -> dict[str, dict]:
     messages = {}
-    for row in load_source():
+    for row in load_source(revision=revision):
         tag = row.get("lang")
         if (source_tag is None or tag == source_tag) and row.get("role") in ("prompter", "assistant"):
             messages[row["message_id"]] = dict(row)

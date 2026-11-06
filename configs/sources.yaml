@@ -1,17 +1,36 @@
 sources:
   openassistant_oasst1:
+    enabled: true
+    kind: oasst1
     dataset_id: OpenAssistant/oasst1
+    revision: fdf72ae0827c1cda404aff25b6603abec9e3399b
+    split: train
     dataset_card: https://huggingface.co/datasets/OpenAssistant/oasst1
     license: Apache-2.0
     license_url: https://huggingface.co/datasets/OpenAssistant/oasst1/blob/main/LICENSE
     source_language_tags: "Read the dataset card; source tags vary (e.g. pt-BR, uk-UA)."
     importer: scripts/import_oasst.py
     note: "Human-generated and human-annotated assistant conversations. Use only records passing upstream review and PII/spam filters. Verify current terms and local requirements before reuse."
+  aya_dataset:
+    enabled: true
+    kind: aya
+    dataset_id: CohereLabs/aya_dataset
+    revision: f9ea04583f02a8f86404ff6c58bf75fe637df8a2
+    split: train
+    dataset_card: https://huggingface.co/datasets/CohereLabs/aya_dataset
+    license: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    importer: scripts/import_hf.py
+    note: "Human-annotated multilingual instruction pairs. The numeric quality score is conservative because the source does not provide a shared per-record score; calibrate per language before promotion."
   wikimedia:
+    enabled: false
+    kind: text_dump
     dataset_card: https://dumps.wikimedia.org/legal.html
     license: "Per-project and per-item; often GFDL and/or CC BY-SA 4.0 for text"
     note: "Not automatically a universal corpus license. Keep attribution and screen exceptions and potential infringements."
   arxiv:
+    enabled: false
+    kind: scholarly_text
     dataset_card: https://info.arxiv.org/help/license/index.html
     license: "Per article version; metadata CC0"
     note: "The default arXiv distribution license does not grant broad downstream reuse."

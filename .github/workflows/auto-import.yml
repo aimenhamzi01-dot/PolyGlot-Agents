@@ -1,0 +1,48 @@
+name: approved-source-import
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit_per_language:
+        description: "Maximum records per source and language"
+        required: false
+        default: "100"
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout pinned configuration
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r scripts/requirements.txt
+
+      - name: Import approved sources into isolated run directory
+        env:
+          LIMIT_PER_LANGUAGE: ${{ github.event.inputs.limit_per_language || '100' }}
+        run: |
+          python scripts/auto_import.py \
+            --limit-per-language "$LIMIT_PER_LANGUAGE" \
+            --output-root datasets/incoming
+
+      - name: Upload import manifest and review package
+        uses: actions/upload-artifact@v4
+        with:
+          name: polyglot-approved-source-import-${{ github.run_id }}
+          path: datasets/incoming/
+          if-no-files-found: error
+          retention-days: 30

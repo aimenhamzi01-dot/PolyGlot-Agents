@@ -57,6 +57,7 @@ python scripts/import_oasst.py --list-languages
 python scripts/import_oasst.py --all-languages --output-root datasets/curated --limit 100
 python scripts/language_report.py --input datasets/curated --output /tmp/language-report.json
 python scripts/scaffold_language.py --code sw --source-tag sw
+python scripts/auto_import.py --limit-per-language 100
 python -m unittest discover -s tests -v
 ```
 
@@ -75,6 +76,18 @@ Arabic development tasks are in `evaluation/benchmarks/ar_tasks.json`. The fixtu
 ### Importing real source data
 
 `scripts/import_oasst.py --list-languages` lists the current OASST1 source tags. Use `--source-lang` for one source tag, or `--all-languages --output-root datasets/curated` to stream the source once and write separate monolingual files. Canonical ISO codes name folders; tags such as `pt-BR` remain attached to their records. The bundled snapshot contains 1,661 human-reviewed SFT pairs across 23 languages from the tags that passed its filters; each is capped at 100 records, and smaller counts reflect the source's available records, not synthetic padding. The importer excludes synthetic/deleted messages and records without zero PII/spam flags, checks common contact patterns, and records source IDs and license metadata. `--limit` is for tests or samples only. `scripts/language_report.py` reports sample counts, score distributions, human review, duplicates, source mix, and review routing separately per language. Use `scripts/scaffold_language.py --code <ISO-code>` to create all dataset-stage folders and a benchmark card marked as requiring native-speaker authorship; it deliberately does not fabricate evaluation tasks. Other sources must be acquired under their own terms and normalized with full provenance. Do not infer a license from a hosting platform or crawl alone.
+
+### Automated approved-source import
+
+`scripts/auto_import.py` runs only sources marked `enabled: true` in `configs/sources.yaml`, and every enabled Hugging Face source must have a pinned commit revision. The current approved sources are the reviewed OASST1 conversations and the human-annotated Aya instruction dataset. The run writes to an isolated timestamped directory under `datasets/incoming/`, preserves source revision and license metadata, screens records, removes contact patterns and cross-source duplicates, and writes `manifest.json`, reject reports, and duplicate reports. It never promotes records directly into `datasets/curated`; review the manifest and reports first.
+
+For a bounded reproducible run:
+
+```bash
+python scripts/auto_import.py --limit-per-language 100
+```
+
+Wikimedia and arXiv remain disabled by default. Their materials require source-specific license handling and must not be mixed into the approved training pool without preserving attribution, ShareAlike or article-level license constraints. A dataset host or download URL is never treated as proof that all records are safe to redistribute.
 
 ## Data record contract
 

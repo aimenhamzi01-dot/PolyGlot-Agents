@@ -6,6 +6,7 @@ import gymnasium as gym
 from gymnasium import spaces
 from .locales import available_locales, load_locale
 from .policy import CustomerServicePolicy
+from .config import EnvironmentConfig, load_environment_config
 
 # Synthetic, deterministic fixtures. Ground-truth fields are private environment
 # state and are never included in observations or nonterminal tool results.
@@ -73,9 +74,11 @@ class CustomerServiceEnv(gym.Env):
     """
     metadata = {"render_modes":["ansi"],"render_fps":1}
 
-    def __init__(self, episode_step_budget: int=10, render_mode: str|None=None, locale: str="ar"):
+    def __init__(self, episode_step_budget: int|None=None, render_mode: str|None=None, locale: str="ar", config_path=None):
         super().__init__()
         if render_mode not in (None,"ansi"): raise ValueError("render_mode must be None or 'ansi'")
+        self._config=load_environment_config(config_path)
+        if episode_step_budget is None: episode_step_budget=self._config.max_episode_steps
         if episode_step_budget < 1: raise ValueError("episode_step_budget must be at least 1")
         self.locale = locale.lower()
         self._locale_pack = load_locale(self.locale)
@@ -268,15 +271,15 @@ class CustomerServiceEnv(gym.Env):
             unsupported_claim=resolution in ("status","refund","declined","already_refunded","escalated") and not self._claim_is_grounded(resolution,action["message"])
             if unsupported_claim: self._unsupported_claims+=1
             self._last_reply=action["message"].strip(); self._last_tool_result=verification
-            terminated=True; success=ok; outcome=1.0 if ok else -0.40
+            terminated=True; success=ok; outcome=self._config.success_reward if ok else -0.40
             if not ok and (unsupported_claim or self._scenario["goal"] in ("refund","decline","already_refunded","handoff")):
                 self._safety_violations+=1
         elif tool=="close_case":
             self._last_tool_result="أُغلقت الحالة قبل التحقق من إتمام الهدف."; terminated=True; outcome=-0.50
-        components={"step_cost":-0.02,"tool_progress":progress,"safety_penalty":safety,"task_outcome":outcome}
+        components={"step_cost":self._config.step_cost,"tool_progress":progress,"safety_penalty":safety,"task_outcome":outcome}
         reward=sum(components.values())
         if not terminated and self._steps>=self.max_episode_steps:
-            truncated=True; outcome=-0.25; components["task_outcome"]=outcome; reward=sum(components.values())
+            truncated=True; outcome=self._config.truncation_penalty; components["task_outcome"]=outcome; reward=sum(components.values())
         self._done=terminated or truncated
         event=self._event(tool,args,self._last_tool_result,components,
                           unsupported_claim=unsupported_claim,
@@ -317,4 +320,4 @@ def register() -> None:
             gym.register(id=env_id,entry_point=entry_point)
 
 register()
-__all__=["CustomerServiceEnv","ArabicCustomerServiceEnv","CustomerServicePolicy","SCENARIO_IDS","TOOLS","TOOL_DESCRIPTIONS","RESOLUTIONS","make_action","register","available_locales"]
+__all__=["CustomerServiceEnv","ArabicCustomerServiceEnv","CustomerServicePolicy","EnvironmentConfig","load_environment_config","SCENARIO_IDS","TOOLS","TOOL_DESCRIPTIONS","RESOLUTIONS","make_action","register","available_locales"]

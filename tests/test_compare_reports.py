@@ -14,11 +14,13 @@ from evaluation.compare_reports import (
 
 
 PROTOCOL = {
-    "schema_version": 1,
-    "benchmark_id": "polyglot-customer-service-ar-v0.1",
-    "benchmark_version": "0.1.0",
+    "schema_version": 2,
+    "benchmark_id": "polyglot-customer-service-ar-v0.2",
+    "benchmark_version": "0.2.0",
     "benchmark_sha256": "a" * 64,
     "environment_sha256": "b" * 64,
+    "evaluator_sha256": "c" * 64,
+    "benchmark_review_status": "pending_native_speaker_review",
     "language": "ar",
     "locale": "ar",
     "split": "development",
@@ -37,7 +39,9 @@ def make_report(name: str, **overrides):
             "tasks": 24,
             "success_rate": 0.8,
             "safe_completion_rate": 0.75,
+            "outcome_match_rate": 0.8,
             "unsafe_action_rate": 0.1,
+            "tool_error_recovery_rate": 0.5,
             "unsupported_claim_rate": 0.05,
             "agent_action_error_rate": 0.02,
             "p95_agent_action_latency_ms": 100.0,
@@ -45,6 +49,10 @@ def make_report(name: str, **overrides):
             "agent_actions_per_second": 4.0,
             "estimated_cost_per_successful_task": 0.02,
         },
+        "results": [
+            {"task_id": f"task-{index:02d}", "scenario_id": f"scenario-{index:02d}", "success": index < 20}
+            for index in range(24)
+        ],
     }
     report.update(overrides)
     return report
@@ -57,7 +65,9 @@ class CompareReportsTests(unittest.TestCase):
         candidate["aggregate"].update({
             "success_rate": 0.9,
             "safe_completion_rate": 0.88,
+            "outcome_match_rate": 0.9,
             "unsafe_action_rate": 0.04,
+            "tool_error_recovery_rate": 0.8,
             "unsupported_claim_rate": 0.0,
             "agent_action_error_rate": 0.01,
             "p95_agent_action_latency_ms": 70.0,
@@ -75,6 +85,7 @@ class CompareReportsTests(unittest.TestCase):
         self.assertEqual(delta["estimated_cost_per_successful_task"], -0.01)
         self.assertIsNone(comparison["composite_score"])
         self.assertNotIn("base_url", comparison["candidates"][0]["agent"])
+        self.assertEqual(comparison["protocol"]["evaluator_sha256"], "c" * 64)
 
     def test_rejects_different_benchmark_content_hash(self):
         reference = make_report("model-a")
@@ -90,6 +101,14 @@ class CompareReportsTests(unittest.TestCase):
         candidate["environment_sha256"] = "c" * 64
 
         with self.assertRaisesRegex(ComparisonError, "environment_sha256 differs"):
+            build_comparison([("a", reference), ("b", candidate)])
+
+    def test_rejects_different_evaluator_hash(self):
+        reference = make_report("model-a")
+        candidate = make_report("model-b")
+        candidate["evaluator_sha256"] = "d" * 64
+
+        with self.assertRaisesRegex(ComparisonError, "evaluator_sha256 differs"):
             build_comparison([("a", reference), ("b", candidate)])
 
     def test_rejects_different_load_protocol(self):
@@ -109,6 +128,28 @@ class CompareReportsTests(unittest.TestCase):
         with self.assertRaisesRegex(ComparisonError, "unique"):
             build_comparison([("same", make_report("a")), ("same", make_report("b"))])
 
+    def test_rejects_aggregate_task_count_that_disagrees_with_results(self):
+        report = make_report("model-a")
+        report["aggregate"]["tasks"] = 23
+
+        with self.assertRaisesRegex(ComparisonError, "does not match"):
+            build_comparison([("a", report), ("b", make_report("model-b"))])
+
+    def test_rejects_duplicate_task_ids_in_report(self):
+        report = make_report("model-a")
+        report["results"][1]["task_id"] = report["results"][0]["task_id"]
+
+        with self.assertRaisesRegex(ComparisonError, "duplicate task IDs"):
+            build_comparison([("a", report), ("b", make_report("model-b"))])
+
+    def test_rejects_different_task_coverage_even_when_counts_match(self):
+        candidate = make_report("model-b")
+        candidate["results"][-1]["task_id"] = "unplanned-task"
+        candidate["results"][-1]["scenario_id"] = "unplanned-scenario"
+
+        with self.assertRaisesRegex(ComparisonError, "task/scenario coverage differs"):
+            build_comparison([("a", make_report("model-a")), ("b", candidate)])
+
     def test_rejects_costs_in_different_currencies(self):
         reference = make_report("model-a")
         candidate = make_report("model-b")
@@ -117,7 +158,7 @@ class CompareReportsTests(unittest.TestCase):
         with self.assertRaisesRegex(ComparisonError, "different currencies"):
             build_comparison([("a", reference), ("b", candidate)])
 
-    def test_markdown_keeps_missing_cost_explicitly_unavailable(self):
+    def test_markdown_keeps_missing_cost_and_review_status_explicit(self):
         reference = make_report("model-a")
         candidate = make_report("model-b")
         candidate["aggregate"]["estimated_cost_per_successful_task"] = None
@@ -128,6 +169,9 @@ class CompareReportsTests(unittest.TestCase):
         self.assertIn("Cost / success", markdown)
         self.assertIn("not zero", markdown)
         self.assertIn("—", markdown)
+        self.assertIn("pending_native_speaker_review", markdown)
+        self.assertIn("Outcome alignment", markdown)
+        self.assertIn("Tool-error recovery", markdown)
 
     def test_load_report_spec_reads_labeled_json_report(self):
         with tempfile.TemporaryDirectory() as tmp:

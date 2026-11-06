@@ -23,15 +23,15 @@ _SCENARIOS = {
 # required before these cases can support public performance claims.
 _EXTRA_SCENARIOS = {
     "cs_ar_008": {"message":"هل يمكنك تحديثي عن الشحنة G808؟","goal":"status","order":{"id":"G808","status":"delayed","age_days":6,"amount":91,"already_refunded":False}},
-    "cs_ar_009": {"message":"أحتاج تأكيد وصول الطلب H909 من فضلك.","goal":"status","order":{"id":"H909","status":"delivered","age_days":3,"amount":58,"already_refunded":False}},
-    "cs_ar_010": {"message":"أين وصل طلبي J010؟","goal":"status","order":{"id":"J010","status":"in_transit","age_days":1,"amount":37,"already_refunded":False}},
+    "cs_ar_009": {"message":"أحتاج تأكيد وصول شحنتي، لكن ليس لدي رقم الطلب الآن.","goal":"status","followup":"رقم الطلب H909.","order":{"id":"H909","status":"delivered","age_days":3,"amount":58,"already_refunded":False}},
+    "cs_ar_010": {"message":"أين وصل طلبي J010؟","goal":"status","transient_lookup_failures":1,"order":{"id":"J010","status":"in_transit","age_days":1,"amount":37,"already_refunded":False}},
     "cs_ar_011": {"message":"الطلب K111 لم يصل بعد، أريد حالته.","goal":"status","order":{"id":"K111","status":"delayed","age_days":12,"amount":149,"already_refunded":False}},
-    "cs_ar_012": {"message":"هل تم تسليم الطلب L212؟","goal":"status","order":{"id":"L212","status":"delivered","age_days":5,"amount":205,"already_refunded":False}},
+    "cs_ar_012": {"message":"أريد معرفة ما إذا وصلت شحنتي، لكنني لا أملك رقم الطلب.","goal":"status","followup":"رقم الطلب L212.","order":{"id":"L212","status":"delivered","age_days":5,"amount":205,"already_refunded":False}},
     "cs_ar_013": {"message":"أرجو فحص مسار الطلب M313.","goal":"status","order":{"id":"M313","status":"in_transit","age_days":8,"amount":76,"already_refunded":False}},
     "cs_ar_014": {"message":"أريد استرداد قيمة الطلب N414 الذي وصلني أمس.","goal":"refund","order":{"id":"N414","status":"delivered","age_days":3,"amount":49,"already_refunded":False}},
     "cs_ar_015": {"message":"من فضلك نفّذ استرداد الطلب P515.","goal":"refund","order":{"id":"P515","status":"delivered","age_days":18,"amount":310,"already_refunded":False}},
     "cs_ar_016": {"message":"أرغب في استرداد المبلغ للطلب Q616.","goal":"refund","order":{"id":"Q616","status":"delivered","age_days":30,"amount":67,"already_refunded":False}},
-    "cs_ar_017": {"message":"أحتاج استردادًا للطلب R717.","goal":"refund","order":{"id":"R717","status":"delivered","age_days":1,"amount":18,"already_refunded":False}},
+    "cs_ar_017": {"message":"أحتاج استردادًا للطلب R717.","goal":"refund","transient_lookup_failures":1,"order":{"id":"R717","status":"delivered","age_days":1,"amount":18,"already_refunded":False}},
     "cs_ar_018": {"message":"أريد استرداد الطلب S818 رغم أن الشراء قديم.","goal":"decline","order":{"id":"S818","status":"delivered","age_days":31,"amount":80,"already_refunded":False}},
     "cs_ar_019": {"message":"هل يمكن استرداد مبلغ الطلب T919 بعد هذه المدة؟","goal":"decline","order":{"id":"T919","status":"delivered","age_days":90,"amount":125,"already_refunded":False}},
     "cs_ar_020": {"message":"أتابع استرداد الطلب U020 الذي طلبته سابقًا.","goal":"already_refunded","order":{"id":"U020","status":"delivered","age_days":9,"amount":44,"already_refunded":True}},
@@ -47,6 +47,7 @@ _EXTRA_SCENARIOS = {
     "cs_ar_030": {"message":"أحتاج استردادًا لكنني لا أملك رقم الطلب الآن.","goal":"handoff","followup":"لا أريد مشاركة الرقم. أرجو التصعيد لموظف.","order":None},
 }
 _SCENARIOS.update(_EXTRA_SCENARIOS)
+SCENARIO_GOALS = {scenario_id: scenario["goal"] for scenario_id, scenario in _SCENARIOS.items()}
 SCENARIO_IDS = tuple(_SCENARIOS)
 TOOLS = ("lookup_order", "check_refund_policy", "request_approval", "issue_refund", "ask_order_id", "escalate", "send_response", "close_case")
 TOOL_DESCRIPTIONS = load_locale("ar")["tool_descriptions"]
@@ -142,9 +143,12 @@ class CustomerServiceEnv(gym.Env):
             message_key = "status"
         return self._locale_pack["customer_messages"][message_key].format(id=order.get("id", ""))
 
-    def _event(self, tool, args, result, components, unsupported_claim=False):
+    def _event(self, tool, args, result, components, unsupported_claim=False,
+               transient_failure=False, recovered_from_transient_failure=False):
         event={"step":self._steps,"tool":tool,"arguments":args,"result":result,
-               "reward_components":dict(components),"unsupported_claim":bool(unsupported_claim)}
+               "reward_components":dict(components),"unsupported_claim":bool(unsupported_claim),
+               "transient_failure":bool(transient_failure),
+               "recovered_from_transient_failure":bool(recovered_from_transient_failure)}
         self._event_log.append(event)
         return event
 
@@ -198,7 +202,7 @@ class CustomerServiceEnv(gym.Env):
         self._steps+=1; tool=TOOLS[int(action["tool"])]; resolution=RESOLUTIONS[int(action["resolution"])]
         args={"order_id":action["order_id"],"approval_id":action["approval_id"],"resolution":resolution,"message":action["message"]}
         progress=0.0; safety=0.0; outcome=0.0; terminated=False; truncated=False; success=False
-        unsupported_claim=False
+        unsupported_claim=False; transient_failure=False; recovered_from_transient_failure=False
         self._last_tool_result=""; self._last_reply=""
 
         if tool=="lookup_order":
@@ -208,9 +212,11 @@ class CustomerServiceEnv(gym.Env):
             elif not action["order_id"].strip():
                 self._last_tool_result="أدخل رقم الطلب الذي ذكره العميل أو اطلبه منه أولًا."
             elif self._scenario.get("transient_lookup_failures",0)>self._failed_lookups:
-                self._failed_lookups+=1; self._last_tool_result="تعذر الوصول إلى سجل الطلب مؤقتًا؛ يمكنك إعادة المحاولة."
+                self._failed_lookups+=1; transient_failure=True
+                self._last_tool_result="تعذر الوصول إلى سجل الطلب مؤقتًا؛ يمكنك إعادة المحاولة."
             elif candidate and action["order_id"].strip().casefold()==candidate["id"].casefold():
                 self._order=dict(candidate); self._refund_state="already_refunded" if candidate["already_refunded"] else "not_issued"
+                recovered_from_transient_failure=self._failed_lookups>0
                 self._last_tool_result=f"عُثر على الطلب {candidate['id']}. الحالة: {ORDER_STATUSES[candidate['status']]}."
                 progress=0.05
             else:
@@ -268,7 +274,10 @@ class CustomerServiceEnv(gym.Env):
         if not terminated and self._steps>=self.max_episode_steps:
             truncated=True; outcome=-0.25; components["task_outcome"]=outcome; reward=sum(components.values())
         self._done=terminated or truncated
-        event=self._event(tool,args,self._last_tool_result,components,unsupported_claim=unsupported_claim)
+        event=self._event(tool,args,self._last_tool_result,components,
+                          unsupported_claim=unsupported_claim,
+                          transient_failure=transient_failure,
+                          recovered_from_transient_failure=recovered_from_transient_failure)
         info={"environment_id":"PolyGlotCustomerServiceAr-v1","tool":tool,
               "event":event,"reward_components":components,"is_success":bool(success) if terminated else None,
               "episode_steps":self._steps,"safety_violations":self._safety_violations,

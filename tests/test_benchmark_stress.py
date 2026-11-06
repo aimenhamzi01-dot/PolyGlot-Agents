@@ -11,7 +11,7 @@ from environments.customer_service_agent import TOOLS
 from evaluation.run_benchmark import RuleBasedAgent, aggregate, load_tasks, run_task
 
 
-BENCHMARK_PATH = Path("evaluation/benchmarks/ar_tasks_v0.1.json")
+BENCHMARK_PATH = Path("evaluation/benchmarks/ar_tasks_v0.2.json")
 LARGE_BENCHMARK_SIZE = 10_000
 EPISODE_BATCH_SIZE = 1_000
 MAX_BATCH_SECONDS = 30.0

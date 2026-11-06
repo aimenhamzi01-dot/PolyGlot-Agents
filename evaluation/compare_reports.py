@@ -16,6 +16,8 @@ PROTOCOL_FIELDS = (
     "benchmark_version",
     "benchmark_sha256",
     "environment_sha256",
+    "evaluator_sha256",
+    "benchmark_review_status",
     "language",
     "locale",
     "split",
@@ -27,7 +29,9 @@ METRIC_LABELS = {
     "tasks": "Tasks",
     "success_rate": "Success rate",
     "safe_completion_rate": "Safe completion",
+    "outcome_match_rate": "Outcome alignment",
     "unsafe_action_rate": "Unsafe-action rate",
+    "tool_error_recovery_rate": "Tool-error recovery",
     "unsupported_claim_rate": "Unsupported-claim rate",
     "agent_action_error_rate": "Action error rate",
     "p95_agent_action_latency_ms": "p95 latency (ms)",
@@ -46,7 +50,9 @@ LOWER_IS_BETTER = {
 RATE_METRICS = {
     "success_rate",
     "safe_completion_rate",
+    "outcome_match_rate",
     "unsafe_action_rate",
+    "tool_error_recovery_rate",
     "unsupported_claim_rate",
     "agent_action_error_rate",
 }
@@ -87,13 +93,14 @@ def _validate_named_reports(named_reports: list[tuple[str, dict[str, Any]]]) -> 
     for field in PROTOCOL_FIELDS:
         if field not in reference or reference[field] in (None, ""):
             raise ComparisonError(f"report {reference_label!r} is missing protocol field {field!r}")
-    if type(reference["schema_version"]) is not int or reference["schema_version"] != 1:
+    if type(reference["schema_version"]) is not int or reference["schema_version"] != 2:
         raise ComparisonError(f"unsupported report schema_version: {reference['schema_version']!r}")
-    for hash_field in ("benchmark_sha256", "environment_sha256"):
+    if not isinstance(reference["benchmark_review_status"], str) or not reference["benchmark_review_status"].strip():
+        raise ComparisonError("benchmark_review_status must be a non-empty string")
+    for hash_field in ("benchmark_sha256", "environment_sha256", "evaluator_sha256"):
         if not isinstance(reference[hash_field], str) or not re.fullmatch(r"[0-9a-fA-F]{64}", reference[hash_field]):
             raise ComparisonError(f"{hash_field} must be a 64-character hexadecimal SHA-256")
-    if not isinstance(reference.get("aggregate"), dict):
-        raise ComparisonError(f"report {reference_label!r} is missing aggregate metrics")
+    reference_tasks = _validate_report_results(reference_label, reference)
 
     for label, report in named_reports[1:]:
         for field in PROTOCOL_FIELDS:
@@ -104,8 +111,8 @@ def _validate_named_reports(named_reports: list[tuple[str, dict[str, Any]]]) -> 
                     f"reports are not comparable: {field} differs "
                     f"({reference_label}={reference[field]!r}, {label}={report[field]!r})"
                 )
-        if not isinstance(report.get("aggregate"), dict):
-            raise ComparisonError(f"report {label!r} is missing aggregate metrics")
+        if _validate_report_results(label, report) != reference_tasks:
+            raise ComparisonError(f"reports are not comparable: task/scenario coverage differs for {label!r}")
 
     currencies = set()
     for label, report in named_reports:
@@ -127,6 +134,31 @@ def _validate_named_reports(named_reports: list[tuple[str, dict[str, Any]]]) -> 
     if len(currencies) > 1:
         raise ComparisonError("cost estimates use different currencies")
     return reference, next(iter(currencies), None)
+
+
+def _validate_report_results(label: str, report: dict[str, Any]) -> dict[str, str]:
+    aggregate = report.get("aggregate")
+    results = report.get("results")
+    if not isinstance(aggregate, dict):
+        raise ComparisonError(f"report {label!r} is missing aggregate metrics")
+    if not isinstance(results, list):
+        raise ComparisonError(f"report {label!r} is missing per-task results")
+    tasks = aggregate.get("tasks")
+    if type(tasks) is not int or tasks != len(results):
+        raise ComparisonError(
+            f"report {label!r} aggregate task count does not match its per-task results"
+        )
+    task_ids = [row.get("task_id") for row in results if isinstance(row, dict)]
+    if len(task_ids) != len(results) or any(
+        not isinstance(task_id, str) or not task_id
+        or not isinstance(row.get("scenario_id"), str) or not row["scenario_id"]
+        or not isinstance(row.get("success"), bool)
+        for task_id, row in zip(task_ids, results)
+    ):
+        raise ComparisonError(f"report {label!r} contains a malformed per-task result")
+    if len(task_ids) != len(set(task_ids)):
+        raise ComparisonError(f"report {label!r} contains duplicate task IDs")
+    return {row["task_id"]: row["scenario_id"] for row in results}
 
 
 def build_comparison(named_reports: list[tuple[str, dict[str, Any]]]) -> dict[str, Any]:
@@ -164,8 +196,8 @@ def build_comparison(named_reports: list[tuple[str, dict[str, Any]]]) -> dict[st
         "candidates": candidates,
         "composite_score": None,
         "interpretation_note": (
-            "Reports passed strict protocol matching. Metrics are shown separately; "
-            "no weighted composite score or universal winner is inferred."
+            "Reports passed strict protocol matching. Review status is reported, not inferred; "
+            "metrics are separate and no weighted composite score or universal winner is inferred."
         ),
     }
 
@@ -196,16 +228,19 @@ def to_markdown(comparison: dict[str, Any]) -> str:
         f"- Benchmark: `{protocol['benchmark_id']}` v`{protocol['benchmark_version']}`",
         f"- Benchmark SHA-256: `{protocol['benchmark_sha256']}`",
         f"- Environment bundle SHA-256: `{protocol['environment_sha256']}`",
+        f"- Evaluator/adapter SHA-256: `{protocol['evaluator_sha256']}`",
         f"- Language/locale: `{protocol['language']}` / `{protocol['locale']}`",
+        f"- Benchmark review status: `{protocol['benchmark_review_status']}`",
         f"- Split, seed, step budget, concurrency: `{protocol['split']}`, `{protocol['seed']}`, `{protocol['step_budget']}`, `{protocol['concurrency']}`",
         "",
         "## Results",
         "",
-        "| Candidate | Tasks | Success | Safe completion | Unsafe actions | Unsupported claims | Action errors | p95 ms | Cost / success |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Candidate | Tasks | Success | Safe completion | Outcome alignment | Tool-error recovery | Unsafe actions | Unsupported claims | Action errors | p95 ms | Cost / success |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     visible_metrics = (
-        "tasks", "success_rate", "safe_completion_rate", "unsafe_action_rate",
+        "tasks", "success_rate", "safe_completion_rate", "outcome_match_rate",
+        "tool_error_recovery_rate", "unsafe_action_rate",
         "unsupported_claim_rate", "agent_action_error_rate",
         "p95_agent_action_latency_ms", "estimated_cost_per_successful_task",
     )

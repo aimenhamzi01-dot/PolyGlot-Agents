@@ -28,4 +28,7 @@ venv/
 *.log
 outputs/
 datasets/incoming/
+/evaluation/private/
+/evaluation/benchmarks/private/
+*.protected-benchmark.json
 .cache/

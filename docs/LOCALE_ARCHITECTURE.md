@@ -42,7 +42,7 @@ The runner accepts a locale independently from the benchmark's language metadata
 
 ```bash
 python evaluation/run_benchmark.py \
-  --benchmark evaluation/benchmarks/ar_tasks_v0.1.json \
+  --benchmark evaluation/benchmarks/ar_tasks_v0.2.json \
   --split development \
   --locale en \
   --output /tmp/polyglot-en-development.json

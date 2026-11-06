@@ -19,10 +19,15 @@ except ModuleNotFoundError:
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from environments.customer_service_agent import CustomerServiceEnv, ArabicCustomerServiceEnv, make_action, load_locale
+from scripts.validate_benchmarks import validate_payload
 from evaluation.openai_agent import OpenAICompatibleAgent
 
 ORDER_ID = re.compile(r"\b[A-Z]\d{3}\b")
 STATUS_TEXT = {"متأخرة": "الطلب {id} متأخر، والشحنة متأخرة.", "قيد التوصيل": "الطلب {id} قيد التوصيل.", "تم التسليم": "تم تسليم الطلب {id}."}
+OUTCOME_RESOLUTIONS = {
+    "status": "status", "refund": "refund", "decline": "declined",
+    "already_refunded": "already_refunded", "handoff": "escalated",
+}
 
 
 class RuleBasedAgent:
@@ -106,7 +111,7 @@ def select_tasks(tasks: Any, split: str | None = None, source: str = "benchmark"
     if len(ids) != len(set(ids)):
         raise ValueError(f"task ids must be unique: {source}")
     if split is None:
-        return tasks
+        split = "development"
     if split not in {"development", "hidden", "all"}:
         raise ValueError("split must be development, hidden, or all")
     return tasks if split == "all" else [task for task in tasks if task.get("split", "development") == split]
@@ -119,6 +124,69 @@ def load_tasks(path: Path, split: str | None = None) -> list[dict]:
     return select_tasks(payload.get("tasks"), split=split, source=str(path))
 
 
+def load_benchmark_for_run(public_path: Path, split: str = "development",
+                           protected_path: Path | None = None) -> tuple[dict, list[dict], str]:
+    """Load public development tasks and, only when explicitly supplied, protected tests."""
+    if split not in {"development", "hidden", "all"}:
+        raise ValueError("split must be development, hidden, or all")
+    if split == "development" and protected_path is not None:
+        raise ValueError("--protected-benchmark is only valid with --split hidden or all")
+    if split in {"hidden", "all"} and protected_path is None:
+        raise ValueError(f"--split {split} requires --protected-benchmark")
+
+    public_bytes = public_path.read_bytes()
+    public_payload = json.loads(public_bytes.decode("utf-8"))
+    if not isinstance(public_payload, dict):
+        raise ValueError(f"public benchmark root must be an object: {public_path}")
+    public_errors = validate_payload(public_payload, str(public_path))
+    if public_errors:
+        raise ValueError("invalid public benchmark: " + "; ".join(public_errors))
+    public_tasks = public_payload.get("tasks")
+    if not isinstance(public_tasks, list):
+        raise ValueError(f"public benchmark tasks must be an array: {public_path}")
+    if any(isinstance(task, dict) and task.get("split") == "hidden" for task in public_tasks):
+        raise ValueError("public benchmark contains hidden task content; move it to protected storage")
+    development = select_tasks(public_tasks, split="development", source=str(public_path))
+    public_sha = hashlib.sha256(public_bytes).hexdigest()
+    if split == "development":
+        return public_payload, development, public_sha
+
+    assert protected_path is not None
+    protected_bytes = protected_path.read_bytes()
+    protected_payload = json.loads(protected_bytes.decode("utf-8"))
+    if not isinstance(protected_payload, dict):
+        raise ValueError(f"protected benchmark root must be an object: {protected_path}")
+    for field in ("benchmark_id", "benchmark_version", "language", "environment"):
+        if protected_payload.get(field) != public_payload.get(field):
+            raise ValueError(f"protected benchmark {field} does not match the public benchmark")
+    protected_errors = validate_payload(
+        protected_payload, str(protected_path), allow_hidden=True
+    )
+    if protected_errors:
+        raise ValueError("invalid protected benchmark: " + "; ".join(protected_errors))
+    protected_tasks = protected_payload.get("tasks")
+    if not isinstance(protected_tasks, list) or any(
+        not isinstance(task, dict) or task.get("split") != "hidden" for task in protected_tasks
+    ):
+        raise ValueError("protected benchmark must contain only tasks with split='hidden'")
+    hidden = select_tasks(protected_tasks, split="hidden", source=str(protected_path))
+    public_ids = {task["id"] for task in development}
+    protected_ids = {task["id"] for task in hidden}
+    public_scenarios = {task["scenario_id"] for task in development}
+    protected_scenarios = {task["scenario_id"] for task in hidden}
+    if public_ids & protected_ids:
+        raise ValueError("public and protected task IDs must not overlap")
+    if public_scenarios & protected_scenarios:
+        raise ValueError("public and protected scenario IDs must not overlap")
+    if split == "hidden":
+        tasks = hidden
+        benchmark_sha = hashlib.sha256(protected_bytes).hexdigest()
+    else:
+        tasks = development + hidden
+        benchmark_sha = hashlib.sha256(f"{public_sha}:{hashlib.sha256(protected_bytes).hexdigest()}".encode()).hexdigest()
+    return public_payload, tasks, benchmark_sha
+
+
 def environment_bundle_sha256() -> str:
     """Fingerprint the environment implementation and all locale packs."""
     root = Path(__file__).resolve().parents[1] / "environments" / "customer_service_agent"
@@ -126,6 +194,22 @@ def environment_bundle_sha256() -> str:
     digest = hashlib.sha256()
     for path in files:
         digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def evaluator_sha256() -> str:
+    """Fingerprint evaluator and adapter source that can affect measured results."""
+    root = Path(__file__).resolve().parent
+    files = [
+        Path(__file__).resolve(), root / "openai_agent.py",
+        root.parent / "scripts" / "validate_benchmarks.py",
+    ]
+    digest = hashlib.sha256()
+    for path in sorted(files):
+        digest.update(path.name.encode("utf-8"))
         digest.update(b"\0")
         digest.update(path.read_bytes())
         digest.update(b"\0")
@@ -175,24 +259,45 @@ def run_task(agent: Any, task: dict, seed: int, step_budget: int, locale: str = 
                     call_usages.append(None)
             observation, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
+        event_log = info.get("event_log", [])
+        actual_resolution = next(
+            (event.get("arguments", {}).get("resolution") for event in reversed(event_log)
+             if event.get("tool") == "send_response"),
+            None,
+        )
+        expected_outcome = task.get("expected_outcome")
         result = {
             "task_id": task["id"], "scenario_id": task["scenario_id"],
             "split": task.get("split", "development"),
             "category": task.get("category", "unspecified"),
+            "expected_outcome": expected_outcome,
+            "actual_resolution": actual_resolution,
+            "outcome_match": (
+                bool(info.get("is_success")) and actual_resolution == OUTCOME_RESOLUTIONS.get(expected_outcome)
+                if expected_outcome in OUTCOME_RESOLUTIONS else None
+            ),
             "success": bool(info.get("is_success")),
             "safety_violations": info.get("safety_violations", 0),
             "unsupported_claims": info.get("unsupported_claims", 0),
             "tool_calls": info.get("episode_steps", 0), "truncated": bool(truncated),
             "reward": round(total_reward, 6), "reward_components": info.get("reward_components", {}),
-            "event_log": info.get("event_log", []),
+            "event_log": event_log,
+            "transient_failure": any(event.get("transient_failure") for event in event_log),
+            "recovered_from_transient_failure": any(
+                event.get("recovered_from_transient_failure") for event in event_log
+            ),
             "agent_action_calls": len(action_latencies_ms),
             "agent_action_errors": action_errors,
             "agent_action_latency_ms": action_latencies_ms,
             **_usage_metrics(call_usages),
         }
     except Exception as exc:  # keep one broken adapter/task from hiding all results
+        expected_outcome = task.get("expected_outcome")
         result = {"task_id": task["id"], "scenario_id": task["scenario_id"],
                   "split": task.get("split", "development"), "success": False,
+                  "expected_outcome": expected_outcome, "actual_resolution": None,
+                  "outcome_match": False if expected_outcome in OUTCOME_RESOLUTIONS else None,
+                  "transient_failure": False, "recovered_from_transient_failure": False,
                   "error": f"{type(exc).__name__}: {exc}",
                   "unsupported_claims": 0,
                   "agent_action_calls": len(action_latencies_ms),
@@ -219,6 +324,10 @@ def aggregate(results: list[dict], elapsed_seconds: float | None = None,
     count = len(results)
     successful = sum(bool(row.get("success")) for row in results)
     safe = sum(bool(row.get("success")) and row.get("safety_violations", 0) == 0 for row in results)
+    outcome_rows = [row for row in results if row.get("outcome_match") is not None]
+    transient_rows = [row for row in results if row.get("transient_failure")]
+    rewards = [float(row.get("reward", 0.0)) for row in results]
+    reward_mean = sum(rewards) / len(rewards) if rewards else 0.0
     action_latencies = [
         float(latency)
         for row in results
@@ -261,7 +370,10 @@ def aggregate(results: list[dict], elapsed_seconds: float | None = None,
         "unsafe_action_rate": round(sum(row.get("safety_violations", 0) > 0 for row in results) / count, 6) if count else 0.0,
         "truncation_rate": round(sum(bool(row.get("truncated")) for row in results) / count, 6) if count else 0.0,
         "mean_tool_calls": round(sum(row.get("tool_calls", 0) for row in results) / count, 6) if count else 0.0,
-        "mean_reward": round(sum(row.get("reward", 0.0) for row in results) / count, 6) if count else 0.0,
+        "mean_reward": round(reward_mean, 6),
+        "reward_std": round(math.sqrt(sum((reward - reward_mean) ** 2 for reward in rewards) / len(rewards)), 6) if rewards else 0.0,
+        "outcome_match_rate": round(sum(bool(row.get("outcome_match")) for row in outcome_rows) / len(outcome_rows), 6) if outcome_rows else None,
+        "tool_error_recovery_rate": round(sum(bool(row.get("recovered_from_transient_failure")) for row in transient_rows) / len(transient_rows), 6) if transient_rows else None,
         "safety_violations": sum(row.get("safety_violations", 0) for row in results),
         "unsupported_claims": unsupported_claims,
         "final_response_attempts": final_response_attempts,
@@ -307,9 +419,12 @@ def run_tasks(agent: Any, tasks: list[dict], seed: int, step_budget: int,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--benchmark", type=Path, default=Path("evaluation/benchmarks/ar_tasks.json"))
-    parser.add_argument("--split", choices=("development", "hidden", "all"), default=None,
-                        help="Run only one declared split; defaults to all tasks for legacy benchmarks")
+    parser.add_argument("--benchmark", type=Path, default=Path("evaluation/benchmarks/ar_tasks_v0.2.json"),
+                        help="Public benchmark file containing development tasks only")
+    parser.add_argument("--protected-benchmark", type=Path,
+                        help="External access-controlled benchmark file containing hidden tasks only")
+    parser.add_argument("--split", choices=("development", "hidden", "all"), default="development",
+                        help="Defaults to development; hidden/all require --protected-benchmark")
     parser.add_argument("--output", type=Path, default=Path("/tmp/polyglot-benchmark-report.json"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--step-budget", type=int, default=10)
@@ -337,12 +452,12 @@ def main() -> None:
         parser.error("provide both input and output token prices, or neither")
     if any(price is not None and (not math.isfinite(price) or price < 0) for price in prices):
         parser.error("token prices must be finite and non-negative")
-    benchmark_bytes = args.benchmark.read_bytes()
-    payload = json.loads(benchmark_bytes.decode("utf-8"))
-    if not isinstance(payload, dict):
-        parser.error("benchmark root must be a JSON object")
-    benchmark_sha256 = hashlib.sha256(benchmark_bytes).hexdigest()
-    tasks = select_tasks(payload.get("tasks"), split=args.split, source=str(args.benchmark))
+    try:
+        payload, tasks, benchmark_sha256 = load_benchmark_for_run(
+            args.benchmark, split=args.split, protected_path=args.protected_benchmark
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        parser.error(str(exc))
     if not tasks:
         parser.error(f"benchmark split has no tasks: {args.split}")
     if args.agent == "openai-compatible":
@@ -354,15 +469,17 @@ def main() -> None:
                         locale=args.locale, concurrency=args.concurrency)
     elapsed_seconds = (time.perf_counter_ns() - started_ns) / 1_000_000_000
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "benchmark_id": payload.get("benchmark_id"),
         "benchmark_version": payload.get("benchmark_version"),
         "benchmark_sha256": benchmark_sha256,
         "environment_sha256": environment_bundle_sha256(),
+        "evaluator_sha256": evaluator_sha256(),
+        "benchmark_review_status": payload.get("human_review_status", "unknown"),
         "language": payload.get("language"),
         "locale": args.locale,
         "environment": payload.get("environment"),
-        "split": args.split or "all",
+        "split": args.split,
         "agent": {"name": f"rule_based_{args.locale}_v1", "type": "deterministic_baseline"} if args.agent == "rule-based" else {
             "name": args.model, "type": "openai_compatible", "base_url": args.base_url,
         },

@@ -21,8 +21,8 @@ The following capabilities exist in the repository today and can be inspected or
 | Multilingual data pipeline | ISO language normalization, language detection, filtering, deduplication, quality scoring, provenance, and per-language reports | Detection and thresholds are finite; language quality still needs native-speaker calibration |
 | Rights-gated ingestion | Pinned-source connectors for OASST1 and Aya, fail-closed rights metadata checks, PII/contact screening, reject reports, duplicate reports, and SHA-256 manifests | The rights gate checks declared evidence; it is not automated legal clearance |
 | Language-neutral environment | Shared Arabic/English/French engine with intent-gated refunds, approval checks, replay protection, and evidence-grounded final claims | Locale packs are synthetic development fixtures, not reviewed public benchmarks |
-| Executable evaluation | 30 deterministic Arabic scenarios, 24 development cards, 6 hidden-test placeholders, safe tool contracts, rewards, event logs, and a rule-based baseline | Hidden tests are not yet protected maintainer data; scenarios are not native-speaker validated |
-| Benchmark runner | Auditable JSON reports with benchmark and environment-bundle SHA-256, success, safety, latency/throughput, and optional token cost; strict protocol-matched comparisons | Automatic provider pricing, protected public benchmarks, and cross-language validation remain incomplete |
+| Executable evaluation | 30 deterministic Arabic scenarios, 24 public development cards, machine-checkable expected outcomes, safe tool contracts, rewards, event logs, and a rule-based baseline | No protected hidden-test set is provisioned; task wording and fixtures still need native-speaker validation |
+| Benchmark runner | Auditable JSON reports with benchmark, environment, and evaluator SHA-256; expected-versus-actual outcomes, safety, latency/throughput, and optional token cost; strict protocol-matched comparisons | Human review and access-controlled holdout storage remain prerequisites for official scores |
 | Experimental model path | Optional LoRA fine-tuning and an OpenAI-compatible evaluation adapter | No claim of model quality, production safety, or customer impact |
 
 The current implementation is therefore a **working research foundation**, not a completed global platform. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md) and [Data licenses](docs/DATA_LICENSES.md) for the operational boundaries.
@@ -106,19 +106,19 @@ The highest-priority gaps are permissioned or partner data, native-speaker revie
 
 ### Future delivery roadmap
 
-**Next 30 days:** obtain native-speaker review for the existing locale packs and 30 Arabic scenarios; move the hidden split to protected maintainer storage; add prompt-injection and tool-failure cases; separate the policy verifier; and publish versioned JSON reports.
+**Next 30 days:** obtain native-speaker review for the 24 public Arabic development cards; author a fresh holdout in access-controlled storage (never reuse task text previously committed to public Git history); add prompt-injection and tool-failure cases; separate the policy verifier; and publish versioned JSON reports.
 
 **By 60 days:** author independent English and French task cards rather than relying on translated parity; add Arabic dialect profiles; implement annotation queues; add the multilingual red-team suite; record cost and latency; and block safety regressions in CI.
 
 **By 90 days:** secure the first data or pilot partner; collect rights-cleared workflow traces; connect production failures to benchmark tasks; publish a dashboard and a model-comparison report.
 
-The first executable milestone is tracked as [`ar_tasks_v0.1.json`](evaluation/benchmarks/ar_tasks_v0.1.json): 30 task cards mapped one-to-one to 30 independent deterministic Arabic customer-service scenarios, with 24 development tasks and 6 declared hidden-test placeholders. The task cards and fixtures are synthetic and still require native-speaker review; they are not evidence of production performance. Run only the development split by default when preparing a model or report:
+The current public executable milestone is [`ar_tasks_v0.2.json`](evaluation/benchmarks/ar_tasks_v0.2.json): 24 development cards mapped to 24 deterministic customer-service scenarios. The former public “hidden” placeholders were removed from the current tree because data inside a public repository is not hidden; their text remains in prior Git history and is permanently unsuitable as a secret holdout. No protected test set is currently provisioned. Every active customer-service card now declares an `expected_outcome` that CI checks against the environment scenario goal. The synthetic task cards still require native-speaker review and are not evidence of production performance. The runner defaults to the development split:
 
 ```bash
 python evaluation/run_benchmark.py \
-  --benchmark evaluation/benchmarks/ar_tasks_v0.1.json \
+  --benchmark evaluation/benchmarks/ar_tasks_v0.2.json \
   --split development \
-  --output /tmp/polyglot-ar-v0.1-development.json
+  --output /tmp/polyglot-ar-v0.2-development.json
 ```
 
 Validate every benchmark task contract locally with:
@@ -129,9 +129,9 @@ python -m scripts.validate_benchmarks
 polyglot-validate-benchmarks
 ```
 
-The validator checks required metadata and task fields, unique task IDs, declared split names, explicit placeholder status for empty language templates, task-count consistency, and scenario references for the executable customer-service environment. It deliberately does not treat placeholder language files as runnable benchmarks.
+The validator checks required metadata and task fields, unique task IDs, declared split names, hidden-test exclusion from public files, task-count consistency, scenario references, and the machine-readable expected outcome against the executable environment's goal. Protected files can be checked separately with `--protected-benchmark /secure/path/holdout.json`; they must contain hidden tasks only. It deliberately does not treat placeholder language files as runnable benchmarks. See [Benchmark release and trust gates](docs/BENCHMARK_RELEASE.md) for the current readiness status, review contract, and holdout handling rules.
 
-The runner records the benchmark version, split, task category, success, safe completion, safety violations, tool calls, truncation, reward, and event log. The hidden split must remain outside training and should be moved to protected maintainer storage before publishing official scores. The current 30 scenarios cover status lookup, clarification, transient recovery, eligible and ineligible refunds, duplicate prevention, escalation, and privacy-safe refusal. Native-speaker review and protected test storage remain the next validation steps.
+The runner records benchmark, environment, and evaluator hashes; review status; expected-versus-actual outcome; task success; safety violations; tool calls; truncation; reward; and event log. Future hidden cases must remain outside the public repository in access-controlled maintainer storage and be supplied explicitly with `--protected-benchmark`; use `--split hidden` or `--split all` only with that file. `.gitignore` is a local safeguard, not access control. Native-speaker review and genuinely protected test storage remain prerequisites for official scores.
 
 Only after these steps should the project expand broadly into additional languages, commerce, research, coding and enterprise workflows. Depth, evidence and rights are more valuable than a large directory of unvalidated languages.
 
@@ -304,7 +304,7 @@ The customer-service Gymnasium environment is an executable multi-step simulatio
 python -m environments.customer_service_agent.demo
 ```
 
-The current executable benchmark is `evaluation/benchmarks/ar_tasks_v0.1.json`; its development split has 24 cards and its hidden split has 6 placeholders. The fixtures and task descriptions have not yet received native-speaker benchmark validation. Running the same semantic fixture through the `en` and `fr` locale packs demonstrates engine parity, not reviewed English or French benchmark coverage. A data sample alone is not a validated evaluation benchmark. `evaluation/language_coverage_report.json` is a point-in-time report for the bundled samples.
+The current executable benchmark is `evaluation/benchmarks/ar_tasks_v0.2.json` with 24 public development cards and no provisioned hidden split. The fixtures and task descriptions have not yet received native-speaker benchmark validation. Running the same semantic fixture through the `en` and `fr` locale packs demonstrates engine parity, not reviewed English or French benchmark coverage. A data sample alone is not a validated evaluation benchmark. `evaluation/language_coverage_report.json` is a point-in-time report for the bundled samples.
 
 ### Verifiable benchmark runner
 
@@ -314,7 +314,20 @@ Run the locale-aware deterministic baseline over every development task and writ
 python evaluation/run_benchmark.py --locale ar --output /tmp/polyglot-benchmark-report.json
 ```
 
-The report includes task success, safe completion, unsafe-action rate, unsupported-claim count/rate, truncation rate, tool-call count, reward, per-action timing/token usage where available, and the full event log. The baseline is intentionally inspectable and is not an LLM score; use it as a sanity check before adding model adapters. The current development fixture produces 24 successful, safe episodes with the baseline in each of the three available locale packs, but it is not yet a native-speaker-validated public benchmark.
+The report includes task success, safe completion, expected-versus-actual outcome alignment, transient tool-error recovery, unsafe-action rate, unsupported-claim count/rate, truncation rate, tool-call count, reward mean/standard deviation, per-action timing/token usage where available, and the full event log. It fingerprints the benchmark, environment bundle, evaluator and model adapter; the report also carries the benchmark's human-review status. The baseline is intentionally inspectable and is not an LLM score; use it as a sanity check before adding model adapters. The current development fixture produces 24 successful, safe episodes with the baseline, but is not yet a native-speaker-validated public benchmark.
+
+If a maintainer later provisions a genuinely protected holdout outside Git, validate and run it explicitly:
+
+```bash
+python -m scripts.validate_benchmarks \
+  --protected-benchmark /secure/maintainer/ar_holdout.json
+python evaluation/run_benchmark.py \
+  --split hidden \
+  --protected-benchmark /secure/maintainer/ar_holdout.json \
+  --output /tmp/polyglot-ar-hidden-report.json
+```
+
+The protected file must match the public benchmark ID/version/language/environment, contain only `hidden` tasks, and use task and scenario IDs disjoint from development. The software validates structure; access control must be provided by the storage system. Do not add protected task files to Git.
 
 To evaluate a deployed vLLM/FastAPI model through its OpenAI-compatible endpoint:
 
@@ -335,7 +348,7 @@ When the compatible API returns usage metadata, reports also include prompt, com
 
 ### Protocol-matched model comparison
 
-Every benchmark report includes SHA-256 hashes of both the benchmark file and the customer-service environment/locale bundle. To compare models, first run each model with the same benchmark file, environment bundle, split, locale, seed, step budget, and concurrency. Then generate a side-by-side scorecard:
+Every benchmark report includes SHA-256 hashes of the benchmark file, customer-service environment/locale bundle, and evaluator/adapter source. The comparator also verifies the declared review status and checks that aggregate task counts match unique per-task results. To compare models, first run each model with the same benchmark file, environment bundle, evaluator, split, locale, seed, step budget, and concurrency. Then generate a side-by-side scorecard:
 
 ```bash
 python evaluation/compare_reports.py \
@@ -346,7 +359,7 @@ python evaluation/compare_reports.py \
   --markdown-output /tmp/model-comparison.md
 ```
 
-The comparator fails closed if protocol fields, benchmark content, or environment-bundle hashes differ, and rejects cost comparisons across currencies. The first report is the delta reference. It reports quality, safety, latency, throughput, and cost separately—there is no opaque composite score or automatic “winner.”
+The comparator fails closed if protocol fields, benchmark content, environment/evaluator hashes, or result counts differ, and rejects cost comparisons across currencies. The first report is the delta reference. It reports quality, safety, latency, throughput, and cost separately—there is no opaque composite score or automatic “winner.” Pending human review remains visible and is not promoted to an official score by the software.
 
 ### Importing real source data
 

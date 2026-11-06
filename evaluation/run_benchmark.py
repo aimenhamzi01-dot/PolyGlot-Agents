@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from collections import Counter
 from datetime import datetime, timezone
@@ -16,6 +17,7 @@ except ModuleNotFoundError:
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from environments.customer_service_agent import ArabicCustomerServiceEnv, make_action
+from evaluation.openai_agent import OpenAICompatibleAgent
 
 ORDER_ID = re.compile(r"\b[A-Z]\d{3}\b")
 STATUS_TEXT = {"متأخرة": "الطلب {id} متأخر، والشحنة متأخرة.", "قيد التوصيل": "الطلب {id} قيد التوصيل.", "تم التسليم": "تم تسليم الطلب {id}."}
@@ -65,7 +67,7 @@ def load_tasks(path: Path) -> list[dict]:
     return payload["tasks"]
 
 
-def run_task(agent: RuleBasedArabicAgent, task: dict, seed: int, step_budget: int) -> dict:
+def run_task(agent: Any, task: dict, seed: int, step_budget: int) -> dict:
     env = ArabicCustomerServiceEnv(episode_step_budget=step_budget)
     observation, _ = env.reset(seed=seed, options={"scenario_id": task["scenario_id"]})
     total_reward = 0.0
@@ -114,19 +116,29 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("/tmp/polyglot-benchmark-report.json"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--step-budget", type=int, default=10)
+    parser.add_argument("--agent", choices=("rule-based", "openai-compatible"), default="rule-based")
+    parser.add_argument("--base-url", default="http://localhost:8080", help="OpenAI-compatible gateway URL")
+    parser.add_argument("--model", default="polyglot-ar", help="Model name exposed by the gateway")
+    parser.add_argument("--api-key", default="", help="API key; prefer POLYGLOT_AGENT_API_KEY")
+    parser.add_argument("--timeout", type=float, default=60.0)
     args = parser.parse_args()
     if args.step_budget < 1:
         parser.error("--step-budget must be positive")
     payload = json.loads(args.benchmark.read_text(encoding="utf-8"))
     tasks = load_tasks(args.benchmark)
-    agent = RuleBasedArabicAgent()
+    if args.agent == "openai-compatible":
+        agent = OpenAICompatibleAgent(args.base_url, args.model, args.api_key or os.getenv("POLYGLOT_AGENT_API_KEY", ""), args.timeout)
+    else:
+        agent = RuleBasedArabicAgent()
     results = [run_task(agent, task, args.seed + index, args.step_budget) for index, task in enumerate(tasks)]
     report = {
         "schema_version": 1,
         "benchmark_id": payload.get("benchmark_id"),
         "language": payload.get("language"),
         "environment": payload.get("environment"),
-        "agent": {"name": "rule_based_ar_v1", "type": "deterministic_baseline"},
+        "agent": {"name": "rule_based_ar_v1", "type": "deterministic_baseline"} if args.agent == "rule-based" else {
+            "name": args.model, "type": "openai_compatible", "base_url": args.base_url,
+        },
         "created_at": datetime.now(timezone.utc).isoformat(),
         "seed": args.seed,
         "step_budget": args.step_budget,

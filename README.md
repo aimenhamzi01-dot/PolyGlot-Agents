@@ -12,11 +12,26 @@
 - Evaluate agents in environments with explicit actions, observations, and verifiable rewards.
 - Separate permissively licensed open code from source-governed datasets and any future separately licensed commercial collections.
 
-## Long-term ambition
+## What the project has today
+
+The following capabilities exist in the repository today and can be inspected or run locally. They are development capabilities, not proof of production readiness or worldwide coverage.
+
+| Capability | Current implementation | Boundary today |
+|---|---|---|
+| Multilingual data pipeline | ISO language normalization, language detection, filtering, deduplication, quality scoring, provenance, and per-language reports | Detection and thresholds are finite; language quality still needs native-speaker calibration |
+| Rights-gated ingestion | Pinned-source connectors for OASST1 and Aya, fail-closed rights metadata checks, PII/contact screening, reject reports, duplicate reports, and SHA-256 manifests | The rights gate checks declared evidence; it is not automated legal clearance |
+| Language-neutral environment | Shared customer-service engine with Arabic, English, and French locale packs | Locale packs are synthetic development fixtures, not reviewed public benchmarks |
+| Executable evaluation | 30 deterministic Arabic scenarios, 24 development cards, 6 hidden-test placeholders, safe tool contracts, rewards, event logs, and a rule-based baseline | Hidden tests are not yet protected maintainer data; scenarios are not native-speaker validated |
+| Benchmark runner | JSON reports with success, safe completion, unsafe actions, truncation, tool calls, rewards, and event logs; locale selection for `ar`, `en`, and `fr` | Model comparison, latency, cost, and unsupported-claim metrics are incomplete |
+| Experimental model path | Optional LoRA fine-tuning and an OpenAI-compatible evaluation adapter | No claim of model quality, production safety, or customer impact |
+
+The current implementation is therefore a **working research foundation**, not a completed global platform. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md) and [Data licenses](docs/DATA_LICENSES.md) for the operational boundaries.
+
+## Future ambition — not current capability
 
 Our long-term goal is to build a trusted, continuously improving multilingual data and evaluation asset that helps AI agents perform real tasks across languages—not merely to accumulate files or claim coverage. If the project develops genuinely differentiated data, credible benchmarks, sustained adoption, and clear rights, it may become strategically valuable to AI companies and could someday be an acquisition candidate. An acquisition is neither guaranteed nor the definition of success.
 
-We intend to work toward that goal through six evidence-based capabilities:
+We intend to work toward that goal through six capabilities that are **planned or incomplete**, not claims about the current repository:
 
 1. **Distinctive, rights-cleared data:** collect or license high-value agent trajectories, tool-use traces, and task outcomes under explicit agreements that permit the intended uses. Preserve consent, attribution, provenance, retention, and deletion requirements. Publicly available corpora are useful starting points, not an exclusive data advantage.
 2. **Meaningful language coverage:** prioritize languages and dialects where current agent performance is weak, with native-speaker review, script and dialect metadata, and quality measurements calibrated within each language. Depth in a focused set of languages is more valuable than unsupported claims of universal coverage.
@@ -25,7 +40,7 @@ We intend to work toward that goal through six evidence-based capabilities:
 5. **Demonstrated customer impact:** run consented pilots with organizations and publish reproducible before/after results, such as resolution rate, error rate, escalation rate, and performance by language. Do not imply customer outcomes until measured and approved for publication.
 6. **A sustainable product model:** explore hosted evaluation, workflow tooling, and separately licensed commercial datasets while keeping the Apache-2.0 codebase and each dataset's own terms clear. Build toward sustained usage and revenue without weakening contributors' rights or misrepresenting open-source data as proprietary.
 
-The first practical wedge is a narrow, measurable use case—such as Arabic customer support and its dialects—with permissioned data and an independently reviewed benchmark. Expand to other languages and tasks only as the project can support them with comparable provenance and validation. The current OASST1 samples and scaffolded benchmark cards are groundwork; they are not exclusive assets, customer validation, or completed multilingual benchmarks.
+The first practical wedge remains a narrow, measurable use case—customer support across selected languages—with permissioned data and an independently reviewed benchmark. Expand to other languages and tasks only as the project can support them with comparable provenance and validation. The current OASST1 samples, locale packs, and benchmark cards are groundwork; they are not exclusive assets, customer validation, or completed multilingual benchmarks.
 
 ## Developer reference: the strategic capability map
 
@@ -44,7 +59,7 @@ licensed data
   -> production regression cases
 ```
 
-### Capabilities the project should build
+### Future capabilities to build
 
 1. **Rights-cleared, defensible data.** Public datasets are a starting point, not the long-term moat. Build permissioned datasets from real or carefully simulated workflows. Every record should retain source, revision, license, consent basis, retrieval date, allowed use, attribution requirements and deletion status. Track derived files and model releases so a source can be quarantined or removed consistently.
 
@@ -83,21 +98,21 @@ licensed data
 
 14. **Business-impact evidence.** Run consented pilots and measure first-contact resolution, escalation, handling time, unsafe action prevention, language-specific quality and cost per successful task. Product claims must be backed by before/after methodology and reproducible evaluation artifacts.
 
-### Current status and gaps
+### Current status and remaining gaps
 
 The repository already has approved-source importing with pinned revisions, provenance and deduplication; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable customer-service environment with Arabic, English, and French locale packs; locale-aware deterministic baselines; and an OpenAI-compatible evaluation adapter. The locale packs are synthetic development fixtures and are not yet native-speaker-validated public benchmarks. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md).
 
-The highest-priority gaps are permissioned or partner data, native-speaker review, a hidden test split, multiple Arabic dialects, an independent policy engine, a review/annotation workflow, production regression data, cost and latency reporting, comparisons against real models, and customer pilots.
+The highest-priority gaps are permissioned or partner data, native-speaker review for each locale, protected hidden test storage, dialect-specific task authoring, an independent policy engine, a review/annotation workflow, production regression data, cost and latency reporting, comparisons against real models, and customer pilots.
 
-### Delivery roadmap
+### Future delivery roadmap
 
-**First 30 days:** expand the Arabic environment to 30–50 tasks; add prompt-injection and tool-failure cases; define a benchmark schema and train/dev/test split; separate the policy verifier; run the real API adapter; publish JSON and HTML reports.
+**Next 30 days:** obtain native-speaker review for the existing locale packs and 30 Arabic scenarios; move the hidden split to protected maintainer storage; add prompt-injection and tool-failure cases; separate the policy verifier; and publish versioned JSON reports.
 
-**By 60 days:** add three Arabic dialect profiles; onboard native-speaker reviewers; implement annotation queues; add the multilingual red-team suite; record cost and latency; and block safety regressions in CI.
+**By 60 days:** author independent English and French task cards rather than relying on translated parity; add Arabic dialect profiles; implement annotation queues; add the multilingual red-team suite; record cost and latency; and block safety regressions in CI.
 
 **By 90 days:** secure the first data or pilot partner; collect rights-cleared workflow traces; connect production failures to benchmark tasks; publish a dashboard and a model-comparison report.
 
-The first executable milestone is now tracked as [`ar_tasks_v0.1.json`](evaluation/benchmarks/ar_tasks_v0.1.json): 30 task cards mapped one-to-one to 30 independent deterministic Arabic customer-service scenarios, with 24 development tasks and 6 declared hidden-test placeholders. The task cards and fixtures are synthetic and still require native-speaker review; they are not evidence of production performance. Run only the development split by default when preparing a model or report:
+The first executable milestone is tracked as [`ar_tasks_v0.1.json`](evaluation/benchmarks/ar_tasks_v0.1.json): 30 task cards mapped one-to-one to 30 independent deterministic Arabic customer-service scenarios, with 24 development tasks and 6 declared hidden-test placeholders. The task cards and fixtures are synthetic and still require native-speaker review; they are not evidence of production performance. Run only the development split by default when preparing a model or report:
 
 ```bash
 python evaluation/run_benchmark.py \
@@ -245,23 +260,23 @@ If `--data` is omitted, the script searches `datasets/incoming/*/curated/*/sft/a
 
 ### Customer-service environment
 
-The Arabic Gymnasium v1 environment is an executable multi-step simulation with structured tool calls, hidden ground-truth state, a rule-based final verifier, bounded reward components, safety penalties, reproducible event logs, and a step budget. Its seven synthetic scenarios cover status lookup, refunds, missing information, escalation, ineligible/duplicate refunds, and a transient tool failure. It performs no real customer or payment actions. Keep trainer-side `info` fields out of the agent observation. Run the end-to-end refund episode with:
+The customer-service Gymnasium environment is an executable multi-step simulation with structured tool calls, hidden ground-truth state, a rule-based final verifier, bounded reward components, safety penalties, reproducible event logs, a step budget, and locale packs for Arabic, English, and French. Its 30 synthetic scenarios cover status lookup, refunds, missing information, escalation, ineligible/duplicate refunds, privacy-safe refusal, and transient tool failure. It performs no real customer or payment actions. Keep trainer-side `info` fields out of the agent observation. Run the end-to-end refund episode with:
 
 ```bash
 python -m environments.customer_service_agent.demo
 ```
 
-Arabic development tasks are in `evaluation/benchmarks/ar_tasks.json`. The fixture and its task descriptions have not yet received native-speaker benchmark validation. English task parity and native-speaker-reviewed benchmark tasks for additional data languages remain planned; a data sample alone is not a validated evaluation benchmark. `evaluation/language_coverage_report.json` is a point-in-time report for the bundled samples.
+The current executable benchmark is `evaluation/benchmarks/ar_tasks_v0.1.json`; its development split has 24 cards and its hidden split has 6 placeholders. The fixtures and task descriptions have not yet received native-speaker benchmark validation. Running the same semantic fixture through the `en` and `fr` locale packs demonstrates engine parity, not reviewed English or French benchmark coverage. A data sample alone is not a validated evaluation benchmark. `evaluation/language_coverage_report.json` is a point-in-time report for the bundled samples.
 
 ### Verifiable benchmark runner
 
-Run the deterministic Arabic baseline over every development task and write an auditable JSON report:
+Run the locale-aware deterministic baseline over every development task and write an auditable JSON report:
 
 ```bash
-python evaluation/run_benchmark.py --output /tmp/polyglot-benchmark-report.json
+python evaluation/run_benchmark.py --locale ar --output /tmp/polyglot-benchmark-report.json
 ```
 
-The report includes task success, safe completion, unsafe-action rate, truncation rate, tool-call count, reward and the full event log. The baseline is intentionally inspectable and is not an LLM score; use it as a sanity check before adding model adapters. The current development fixture produces seven successful, safe episodes with the baseline, but it is not yet a native-speaker-validated public benchmark.
+The report includes task success, safe completion, unsafe-action rate, truncation rate, tool-call count, reward and the full event log. The baseline is intentionally inspectable and is not an LLM score; use it as a sanity check before adding model adapters. The current development fixture produces 24 successful, safe episodes with the baseline in each of the three available locale packs, but it is not yet a native-speaker-validated public benchmark.
 
 To evaluate a deployed vLLM/FastAPI model through its OpenAI-compatible endpoint:
 

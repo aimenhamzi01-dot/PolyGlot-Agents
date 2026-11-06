@@ -7,6 +7,7 @@ PolyGlot Agents is a global project. Arabic is the first validated fixture, not 
 ```text
 environments/customer_service_agent/
   __init__.py              # shared environment and backward-compatible ar entry point
+  policy.py                # locale-neutral authorization and idempotency policy engine
   locales.py               # locale-pack loader and validation
   locales/
     ar.yaml                # Arabic reference pack
@@ -35,6 +36,15 @@ A locale pack contains:
 - Natural customer surface forms for the language or dialect.
 
 A locale pack must not change the business meaning of a task. For example, `refund_eligible_order` has the same state and authorization requirements in Arabic, English, French, or a future low-resource language. Only the natural wording and language-specific evidence terms change.
+
+## Policy boundary
+
+Sensitive actions are checked by `CustomerServicePolicy` before the environment mutates
+state. The policy engine is independent of Gymnasium and locale wording and returns
+stable reason codes for audit events and future tool gateways. Refunds require a verified
+order, customer intent, an eligible policy result, a matching approval, and an unprocessed
+refund state. A rejected or replayed action cannot create a refund. The environment still
+owns rewards and localized messages; the policy engine owns authorization decisions.
 
 ## Running the same benchmark by locale
 

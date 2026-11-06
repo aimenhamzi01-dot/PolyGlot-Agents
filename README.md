@@ -246,6 +246,19 @@ python -m unittest discover -s tests -v
 
 `lang_id.py` uses fastText's language-identification model and normalizes predictions to ISO 639-1 when available, otherwise ISO 639-3. It downloads the official model to a local cache on first run; alternatively, pass `--model /path/to/lid.176.ftz`. Low-confidence results and declared/detected conflicts are marked `needs_review`; the input language tag is preserved. Unlabelled input is routed to review by default; `--auto-accept-unlabelled` is an opt-in for workflows that accept the finite detector's risk. fastText lid.176 has finite coverage and is not a universal language oracle. If a trusted source tag is outside detector coverage, the tag is retained instead of replacing it with a guess. Licensed data for languages it does not confidently detect can still be imported using a verified source tag.
 
+### Open language registry
+
+`configs/languages.yaml` is an open catalog, not a whitelist. `scripts/language_registry.py` resolves any valid ISO 639 or BCP-47 tag, preserves the exact source tag, and derives `lang_code`, `bcp47`, `script`, and `region` metadata. A language can enter staging even when it has no catalog profile; it is then marked `open_unregistered` and routed for review rather than rejected solely because a detector or config file lacks an entry.
+
+Validate a proposed language before adding a connector or benchmark:
+
+```bash
+python -m scripts.language_registry --code sw
+python -m scripts.language_registry --code pt-BR
+```
+
+The automated ingestion pipeline enriches each record with the resolved language metadata and keeps `source_lang_tag` unchanged. Registry membership is descriptive; it does not by itself mean that a language is benchmark-supported. Rights, schema, privacy, quality, native-speaker review, and benchmark checks remain separate gates.
+
 ### Experimental fine-tuning
 
 The optional `scripts/fine_tune.py` trains a causal language model on reviewed JSONL records. It defaults to LoRA so the base model remains unchanged and only a small adapter is saved. Training dependencies are intentionally separate from the data pipeline:

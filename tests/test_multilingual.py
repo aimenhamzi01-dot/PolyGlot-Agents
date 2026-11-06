@@ -6,6 +6,7 @@ from scripts.language_codes import canonical_iso639, is_iso639
 from scripts.language_report import summarize
 from scripts.lang_id import run
 from scripts.filter_data import screen
+from scripts.language_registry import enrich_record, load_registry, resolve, validate_language
 
 class FakeModel:
     def __init__(self, label, confidence): self.label, self.confidence = label, confidence
@@ -13,6 +14,28 @@ class FakeModel:
     def get_labels(self): return ['__label__en','__label__fr']
 
 class MultilingualTests(unittest.TestCase):
+    def test_registry_preserves_source_tag_and_derives_metadata(self):
+        registry = load_registry()
+        metadata = resolve("pt-BR", registry)
+        self.assertEqual(metadata["lang_code"], "pt")
+        self.assertEqual(metadata["source_lang_tag"], "pt-BR")
+        self.assertEqual(metadata["bcp47"], "pt-BR")
+        self.assertEqual(metadata["region"], "BR")
+        record = enrich_record({"lang_code": "pt-BR", "source": "fixture"}, registry)
+        self.assertEqual(record["lang_code"], "pt")
+        self.assertEqual(record["source_lang_tag"], "pt-BR")
+        self.assertEqual(record["script"], "Latn")
+
+    def test_open_registry_accepts_valid_unlisted_language(self):
+        result = validate_language("sw")
+        self.assertTrue(result["ready_for_ingestion"])
+        self.assertFalse(result["metadata"]["registered"])
+
+    def test_registry_alias_maps_arb_to_ar_without_losing_source_tag(self):
+        result = resolve("arb")
+        self.assertEqual(result["lang_code"], "ar")
+        self.assertEqual(result["source_lang_tag"], "arb")
+
     def test_region_tags_canonicalize_but_variants_are_preserved_elsewhere(self):
         self.assertEqual(canonical_iso639('pt-BR'), 'pt')
         self.assertEqual(canonical_iso639('uk-UA'), 'uk')

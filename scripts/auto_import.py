@@ -20,12 +20,14 @@ try:
     from scripts.import_hf import import_aya
     from scripts.import_oasst import make_records
     from scripts.rights_engine import RightsError, validate_record, validate_source
+    from scripts.language_registry import enrich_record, load_registry
 except ModuleNotFoundError:
     from deduplicate import fingerprint
     from filter_data import screen
     from import_hf import import_aya
     from import_oasst import make_records
     from rights_engine import RightsError, validate_record, validate_source
+    from language_registry import enrich_record, load_registry
 
 DEFAULT_CONFIG = Path("configs/sources.yaml")
 
@@ -109,6 +111,7 @@ def screen_and_write(groups: dict[str, list[dict]], root: Path, config: dict) ->
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--language-registry", type=Path, default=Path("configs/languages.yaml"))
     parser.add_argument("--output-root", type=Path, default=Path("datasets/incoming"))
     parser.add_argument("--source", action="append", dest="sources", help="Repeat to select named source; default is all enabled sources")
     parser.add_argument("--limit-per-language", type=int, help="Safety limit for each source and language")
@@ -141,12 +144,16 @@ def main() -> None:
     root.mkdir(parents=True, exist_ok=True)
     groups: dict[str, list[dict]] = defaultdict(list)
     source_manifest = []
+    language_registry = load_registry(args.language_registry)
     for name in selected:
         cfg = source_cfg[name]
         if not cfg.get("revision"):
             raise SystemExit(f"{name}: pinned revision is required for reproducible imports")
         imported = source_rows(name, cfg, args.limit_per_language)
-        imported_rows = [row for rows in imported.values() for row in rows]
+        imported_rows = [enrich_record(row, language_registry) for rows in imported.values() for row in rows]
+        imported = defaultdict(list)
+        for row in imported_rows:
+            imported[row["lang_code"]].append(row)
         try:
             for row in imported_rows:
                 validate_record(row)

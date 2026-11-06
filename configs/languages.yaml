@@ -9,8 +9,8 @@ defaults:
   require_native_speaker_review: true
   quality_is_cross_language_comparable: false
 languages:
-  ar: {name: Arabic, source_tags: [ar], scripts: [Arab], stage: foundation}
-  en: {name: English, source_tags: [en], scripts: [Latn], stage: foundation}
+  ar: {name: Arabic, source_tags: [ar, ara, arb], scripts: [Arab], stage: foundation}
+  en: {name: English, source_tags: [en, eng], scripts: [Latn], stage: foundation}
   es: {name: Spanish, source_tags: [es], scripts: [Latn], stage: expansion}
   ru: {name: Russian, source_tags: [ru], scripts: [Cyrl], stage: expansion}
   zh: {name: Chinese, source_tags: [zh], scripts: [Hans, Hant], stage: expansion}

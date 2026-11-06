@@ -2,6 +2,8 @@
 
 PolyGlot Agents is designed for broad multilingual coverage, not a fixed English-first language list. The import and processing tools are not whitelisted to the language entries in `configs/languages.yaml`: any valid ISO 639-1 code is accepted, and ISO 639-3 is used when no alpha-2 code exists. Use the canonical code for a directory. Keep region, script, dialect, and dataset-native language labels in record metadata; for example, OASST's `pt-BR` source tag maps to directory code `pt` while preserving `source_lang_tag: pt-BR`. A file must contain one canonical language only.
 
+The executable resolver is `scripts/language_registry.py`. It treats the YAML catalog as an open profile catalog rather than a whitelist, preserves the source tag, and derives `bcp47`, `script`, and `region`. A valid language without a profile is marked `open_unregistered` and can enter staging with `native_review_required: true`; it is not silently promoted to benchmark-supported status.
+
 ## Current tooling coverage
 
 `scripts/import_oasst.py --list-languages` queries the source and prints every language tag and record count the current OASST1 version exposes. `--all-languages` streams that source once and writes each source tag to its own monolingual JSONL file under the corresponding ISO directory. `scripts/lang_id.py` uses fastText lid.176, so automatic detection is not guaranteed for every language on Earth; low-confidence records go to review, and the code preserves declared language rather than silently guessing. An unsupported detector is not a reason to reject a licensed language dataset: a verified source tag may be supplied directly to an importer.

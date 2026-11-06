@@ -99,6 +99,91 @@ The highest-priority gaps are permissioned or partner data, native-speaker revie
 
 Only after these steps should the project expand broadly into additional languages, commerce, research, coding and enterprise workflows. Depth, evidence and rights are more valuable than a large directory of unvalidated languages.
 
+## Global coverage roadmap
+
+The long-term strategic ambition is to make PolyGlot Agents a **Global Multilingual and Multimodal Agent Data & Reliability Platform**. This is an ambition for an open, extensible system—not a claim that the project already owns data for every language, dialect, topic, technology, or modality. Coverage must always be measured, licensed, documented, and reproducible.
+
+The platform should model coverage across four independent dimensions:
+
+```text
+Languages / Dialects
+Domains / Topics
+Technologies / Tasks
+Data Modalities / Formats
+```
+
+These dimensions form a coverage matrix such as `language × dialect × domain × task × modality × review status`. For example, a record may represent Moroccan Arabic + customer service + e-commerce + text conversation + tool use + licensed data + human review, while another may represent Japanese + programming + Python + executable code repair + repository data + execution-based testing.
+
+### Strategic workstreams
+
+1. **Open language and dialect registry.** Evolve beyond a static language list toward a registry using ISO 639-1/639-3, BCP 47, script, region, dialect metadata, resource level, documentation status, native-speaker review, coverage, and confidence. Dialects without an official code should use an internal identifier rather than an invented ISO code.
+2. **Common multimodal data contract.** Support text, conversations, tool actions, agent trajectories, code, tables, databases, knowledge graphs, images, audio, video, PDFs, geospatial, time-series, sensor, scientific, and industrial data through independent adapters. Shared metadata should include `id`, `source`, `license`, `provenance`, `language`, `dialect`, `modality`, `domain`, `quality`, `safety`, and `human_review`.
+3. **Extensible domain taxonomy.** Cover business, customer service, finance, health, law, education, science, engineering, programming, cybersecurity, manufacturing, logistics, travel, government, agriculture, media, retail, and research. High-risk domains require stronger expert review and controls than general-purpose data.
+4. **Technology registry and executable evaluation.** Register technologies such as programming languages, databases, APIs, Docker, Kubernetes, MCP, robotics, IoT, computer vision, speech, and scientific computing. Each technology needs tasks, tool contracts, a test environment, operational and security checks, version metadata, and deprecation information. Code evaluation must test compilation, behavior, regression tests, API compatibility, and security—not just text similarity.
+5. **Composable model architecture.** Prefer routing and adapters over forcing all languages, domains, and modalities into one undifferentiated model:
+
+   ```text
+   base multilingual model
+     -> language / dialect adapters
+     -> domain adapters
+     -> task adapters
+     -> tool-use policies
+     -> retrieval and routing layer
+   ```
+
+6. **Coverage dashboard and evidence.** Publish what is covered, partially covered, under development, or missing. Every supported language, dialect, technology, or modality must have a data card, provenance, rights status, quality report, review status, benchmark or task card, and known limitations.
+
+### Architecture to grow toward
+
+The implementation should move toward independent, composable plugins rather than manual edits to central files:
+
+```text
+language_registry/
+domain_registry/
+technology_registry/
+modality_adapters/
+source_connectors/
+schema_registry/
+quality_engine/
+annotation_platform/
+rights_engine/
+benchmark_engine/
+policy_engine/
+model_router/
+coverage_dashboard/
+```
+
+### Definition of supported
+
+A language, dialect, technology, or dataset should not be marked **supported** merely because an empty directory or configuration entry exists. The contribution must provide:
+
+1. A documented and appropriately licensed source.
+2. A valid schema and language/dialect/domain metadata.
+3. PII and safety screening.
+4. Deduplication and provenance tracking.
+5. Appropriate human or expert review.
+6. A benchmark, executable task, or task card.
+7. Train/dev/test separation, including a protected test split where applicable.
+8. A coverage and quality report.
+9. Regression tests and reproducible versioning.
+10. Documentation of limitations, bias, and rights constraints.
+
+### Global expansion phases
+
+**Phase 1 — Foundations:** support ISO and BCP 47 metadata; establish the language, domain, and technology registries; convert the pipeline to a plugin architecture; and stabilize text, conversations, tool traces, and code.
+
+**Phase 2 — Modalities and verification:** add image, audio, video, PDF, and table adapters; establish native-speaker review workflows; add a sandbox for executable code; and publish the first coverage dashboard.
+
+**Phase 3 — Adapters and routing:** add validated language, dialect, domain, and technology adapters; build the model router; add domain retrieval; and publish multilingual and multimodal benchmarks.
+
+**Phase 4 — Global ecosystem:** accept international contributions, form data partnerships across sectors, onboard licensed operational data, support private/on-premise deployments, and publish commercial impact reports backed by evidence.
+
+The official ambition is therefore not “we own data for every language and topic.” It is:
+
+> **We are building the open infrastructure that allows any language, dialect, domain, technology, or data modality to be added—and verifies its rights, quality, safety, and performance with measurable evidence.**
+
+The project’s defensible advantage should be the combination of coverage, provenance, human review, executable environments, benchmarks, policy enforcement, adapters, failure tracking, and a global contributor community. Every coverage claim must remain linked to inspectable evidence.
+
 ## Repository layout
 
 ```text

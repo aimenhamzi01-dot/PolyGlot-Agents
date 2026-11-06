@@ -97,6 +97,17 @@ The highest-priority gaps are permissioned or partner data, native-speaker revie
 
 **By 90 days:** secure the first data or pilot partner; collect rights-cleared workflow traces; connect production failures to benchmark tasks; publish a dashboard and a model-comparison report.
 
+The first executable milestone is now tracked as [`ar_tasks_v0.1.json`](evaluation/benchmarks/ar_tasks_v0.1.json): 30 task cards over the existing deterministic Arabic customer-service fixtures, with 24 development tasks and 6 declared hidden-test placeholders. The task cards are synthetic and still require native-speaker review; they are not evidence of production performance. Run only the development split by default when preparing a model or report:
+
+```bash
+python evaluation/run_benchmark.py \
+  --benchmark evaluation/benchmarks/ar_tasks_v0.1.json \
+  --split development \
+  --output /tmp/polyglot-ar-v0.1-development.json
+```
+
+The runner records the benchmark version, split, task category, success, safe completion, safety violations, tool calls, truncation, reward, and event log. The hidden split must remain outside training and should be moved to protected maintainer storage before publishing official scores. The current 30 cards exercise seven deterministic scenarios; expanding scenario diversity, adding native-speaker review, and protecting the test data are the next validation steps.
+
 Only after these steps should the project expand broadly into additional languages, commerce, research, coding and enterprise workflows. Depth, evidence and rights are more valuable than a large directory of unvalidated languages.
 
 ## Global coverage roadmap

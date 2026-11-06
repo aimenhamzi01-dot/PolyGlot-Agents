@@ -60,11 +60,21 @@ class RuleBasedArabicAgent:
         return make_action("ask_order_id")
 
 
-def load_tasks(path: Path) -> list[dict]:
+def load_tasks(path: Path, split: str | None = None) -> list[dict]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload.get("tasks"), list) or not payload["tasks"]:
         raise ValueError(f"benchmark contains no tasks: {path}")
-    return payload["tasks"]
+    tasks = payload["tasks"]
+    ids = [task.get("id") for task in tasks]
+    if any(not task.get("id") or not task.get("scenario_id") for task in tasks):
+        raise ValueError(f"every task must have id and scenario_id: {path}")
+    if len(ids) != len(set(ids)):
+        raise ValueError(f"task ids must be unique: {path}")
+    if split is None:
+        return tasks
+    if split not in {"development", "hidden", "all"}:
+        raise ValueError("split must be development, hidden, or all")
+    return tasks if split == "all" else [task for task in tasks if task.get("split", "development") == split]
 
 
 def run_task(agent: Any, task: dict, seed: int, step_budget: int) -> dict:
@@ -80,6 +90,8 @@ def run_task(agent: Any, task: dict, seed: int, step_budget: int) -> dict:
             total_reward += reward
         result = {
             "task_id": task["id"], "scenario_id": task["scenario_id"],
+            "split": task.get("split", "development"),
+            "category": task.get("category", "unspecified"),
             "success": bool(info.get("is_success")),
             "safety_violations": info.get("safety_violations", 0),
             "tool_calls": info.get("episode_steps", 0), "truncated": bool(truncated),
@@ -88,7 +100,8 @@ def run_task(agent: Any, task: dict, seed: int, step_budget: int) -> dict:
         }
     except Exception as exc:  # keep one broken adapter/task from hiding all results
         error = f"{type(exc).__name__}: {exc}"
-        result = {"task_id": task["id"], "scenario_id": task["scenario_id"], "success": False, "error": error}
+        result = {"task_id": task["id"], "scenario_id": task["scenario_id"],
+                  "split": task.get("split", "development"), "success": False, "error": error}
     finally:
         env.close()
     return result
@@ -107,12 +120,16 @@ def aggregate(results: list[dict]) -> dict:
         "mean_tool_calls": round(sum(row.get("tool_calls", 0) for row in results) / count, 6) if count else 0.0,
         "mean_reward": round(sum(row.get("reward", 0.0) for row in results) / count, 6) if count else 0.0,
         "safety_violations": sum(row.get("safety_violations", 0) for row in results),
+        "successful_tasks": successful,
+        "safe_tasks": safe,
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--benchmark", type=Path, default=Path("evaluation/benchmarks/ar_tasks.json"))
+    parser.add_argument("--split", choices=("development", "hidden", "all"), default=None,
+                        help="Run only one declared split; defaults to all tasks for legacy benchmarks")
     parser.add_argument("--output", type=Path, default=Path("/tmp/polyglot-benchmark-report.json"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--step-budget", type=int, default=10)
@@ -125,7 +142,9 @@ def main() -> None:
     if args.step_budget < 1:
         parser.error("--step-budget must be positive")
     payload = json.loads(args.benchmark.read_text(encoding="utf-8"))
-    tasks = load_tasks(args.benchmark)
+    tasks = load_tasks(args.benchmark, split=args.split)
+    if not tasks:
+        parser.error(f"benchmark split has no tasks: {args.split}")
     if args.agent == "openai-compatible":
         agent = OpenAICompatibleAgent(args.base_url, args.model, args.api_key or os.getenv("POLYGLOT_AGENT_API_KEY", ""), args.timeout)
     else:
@@ -134,8 +153,10 @@ def main() -> None:
     report = {
         "schema_version": 1,
         "benchmark_id": payload.get("benchmark_id"),
+        "benchmark_version": payload.get("benchmark_version"),
         "language": payload.get("language"),
         "environment": payload.get("environment"),
+        "split": args.split or "all",
         "agent": {"name": "rule_based_ar_v1", "type": "deterministic_baseline"} if args.agent == "rule-based" else {
             "name": args.model, "type": "openai_compatible", "base_url": args.base_url,
         },

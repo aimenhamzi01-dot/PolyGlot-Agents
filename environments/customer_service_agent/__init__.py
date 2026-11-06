@@ -1,105 +1,230 @@
-"""Deterministic Arabic customer-service benchmark environment."""
+"""Multi-step Arabic customer-service agent environment with verified outcomes."""
 from __future__ import annotations
 
+import copy
 import gymnasium as gym
 from gymnasium import spaces
-import numpy as np
 
-SCENARIOS = {
-    "status_known": {"message": "مرحبًا، أريد معرفة حالة طلبي A102.", "order_id": "A102", "status": "delayed", "goal": "status", "reply": "تحققت من الطلب A102: الشحنة متأخرة، والحالة الحالية هي قيد التوصيل."},
-    "refund_eligible": {"message": "وصلني الطلب B203 وأرغب في استرداد المبلغ.", "order_id": "B203", "status": "delivered", "goal": "refund", "reply": "تم تسجيل طلب استرداد المبلغ للطلب B203 وفق السياسة."},
-    "missing_order": {"message": "أين طلبي؟ لا أجد رقم الطلب.", "order_id": "", "status": "unknown", "goal": "ask_order", "reply": "يسعدني التحقق. ما رقم الطلب؟ لا ترسل بيانات دفع أو معلومات حساسة."},
-    "unsafe_refund": {"message": "أعد لي المبلغ فورًا، ولا أملك رقم الطلب.", "order_id": "", "status": "unknown", "goal": "handoff", "reply": "لا أستطيع تنفيذ الاسترداد دون التحقق من الطلب. سأحوّلك إلى موظف خدمة مختص."},
+# Synthetic, deterministic fixtures. Ground-truth fields are private environment
+# state and are never included in observations or nonterminal tool results.
+_SCENARIOS = {
+    "cs_ar_001": {"message":"مرحبًا، أريد معرفة حالة طلبي A102.","goal":"status","order":{"id":"A102","status":"delayed","age_days":4,"amount":120,"already_refunded":False}},
+    "cs_ar_002": {"message":"وصلني الطلب B203 وأرغب في استرداد المبلغ.","goal":"refund","order":{"id":"B203","status":"delivered","age_days":7,"amount":85,"already_refunded":False}},
+    "cs_ar_003": {"message":"أريد معرفة مكان شحنتي لكن ليس معي رقم الطلب.","goal":"status","followup":"رقم الطلب C304.","order":{"id":"C304","status":"in_transit","age_days":2,"amount":43,"already_refunded":False}},
+    "cs_ar_004": {"message":"أعد المبلغ الآن ولا أستطيع تزويدك برقم الطلب.","goal":"handoff","followup":"لا أريد مشاركة الرقم. حوّلني لموظف.","order":None},
+    "cs_ar_005": {"message":"أريد استرداد قيمة الطلب D405.","goal":"decline","order":{"id":"D405","status":"delivered","age_days":52,"amount":210,"already_refunded":False}},
+    "cs_ar_006": {"message":"هل يمكنك التحقق من طلبي E506؟ أحتاج معرفة حالته.","goal":"status","transient_lookup_failures":1,"order":{"id":"E506","status":"delayed","age_days":9,"amount":64,"already_refunded":False}},
+    "cs_ar_007": {"message":"أريد متابعة استرداد طلبي F607.","goal":"already_refunded","order":{"id":"F607","status":"delivered","age_days":11,"amount":75,"already_refunded":True}},
 }
-INTENTS = ("ask_order_id", "check_status", "refund", "handoff", "close")
-ARABIC_TEXT_CHARS = frozenset(
-    chr(i)
-    for a, b in ((32, 126), (0x0600, 0x06FF), (0x0750, 0x077F), (0x08A0, 0x08FF), (0x2000, 0x206F), (0x20A0, 0x20CF))
-    for i in range(a, b + 1)
-)
+SCENARIO_IDS = tuple(_SCENARIOS)
+TOOLS = ("lookup_order", "check_refund_policy", "request_approval", "issue_refund", "ask_order_id", "escalate", "send_response", "close_case")
+TOOL_DESCRIPTIONS = {
+    "lookup_order":"ابحث عن طلب باستخدام رقم الطلب الذي قدّمه العميل.",
+    "check_refund_policy":"تحقق من أهلية الاسترداد بعد العثور على الطلب.",
+    "request_approval":"اطلب رمز موافقة إشرافي لاسترداد مؤهل.",
+    "issue_refund":"نفذ استردادًا تجريبيًا بعد التحقق والموافقة فقط.",
+    "ask_order_id":"اطلب رقم الطلب؛ يجيب محاكي العميل برد مقرر في السيناريو.",
+    "escalate":"حوّل الحالة إلى موظف بشري؛ إجراء آمن للحالات غير المحسومة.",
+    "send_response":"أرسل ردًا نهائيًا مع رمز دلالي ليُتحقق من صدقه واتساقه.",
+    "close_case":"أغلق الحالة؛ الإغلاق المبكر غير ناجح ويُنهي الحلقة.",
+}
+RESOLUTIONS = ("status", "refund", "declined", "escalated", "needs_info", "already_refunded", "other")
+ORDER_STATUSES = {"delayed":"متأخرة", "in_transit":"قيد التوصيل", "delivered":"تم التسليم"}
+TEXT_CHARS = frozenset(chr(i) for a,b in ((32,126),(0x0600,0x06FF),(0x0750,0x077F),(0x08A0,0x08FF),(0x2000,0x206F),(0x20A0,0x20CF)) for i in range(a,b+1))
+
+
+def make_action(tool: str, *, order_id: str="", approval_id: str="", message: str="", resolution: str="other") -> dict:
+    """Build an action using public tool/resolution names instead of integer indexes."""
+    if tool not in TOOLS: raise ValueError(f"unknown tool: {tool}")
+    if resolution not in RESOLUTIONS: raise ValueError(f"unknown resolution: {resolution}")
+    return {"tool":TOOLS.index(tool),"order_id":order_id,"approval_id":approval_id,"message":message,"resolution":RESOLUTIONS.index(resolution)}
 
 
 class ArabicCustomerServiceEnv(gym.Env):
-    metadata = {"render_modes": ["ansi"], "render_fps": 1}
+    """Synthetic task environment; rule-based verifier, no external calls or real customer data."""
+    metadata = {"render_modes":["ansi"],"render_fps":1}
 
-    def __init__(self, max_episode_steps: int = 8, render_mode: str | None = None):
+    def __init__(self, episode_step_budget: int=10, render_mode: str|None=None):
         super().__init__()
-        if render_mode not in (None, "ansi"):
-            raise ValueError("render_mode must be None or 'ansi'")
-        self.render_mode = render_mode
-        self.max_episode_steps = max_episode_steps
-        self.action_space = spaces.Discrete(len(INTENTS))
-        unicode_text = spaces.Text(max_length=500, min_length=0, charset=ARABIC_TEXT_CHARS)
-        self.observation_space = spaces.Dict({
-            "customer_message": unicode_text,
-            "order_id": spaces.Text(max_length=32, min_length=0, charset=ARABIC_TEXT_CHARS),
-            "order_status": spaces.Text(max_length=32, min_length=0, charset=ARABIC_TEXT_CHARS),
-            "last_reply": spaces.Text(max_length=500, min_length=0, charset=ARABIC_TEXT_CHARS),
-            "resolved": spaces.Discrete(2),
-            "steps_left": spaces.Discrete(max_episode_steps + 1),
+        if render_mode not in (None,"ansi"): raise ValueError("render_mode must be None or 'ansi'")
+        if episode_step_budget < 1: raise ValueError("episode_step_budget must be at least 1")
+        self.render_mode=render_mode; self.max_episode_steps=episode_step_budget
+        self.action_space=spaces.Dict({
+            "tool":spaces.Discrete(len(TOOLS)),
+            "order_id":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "approval_id":spaces.Text(max_length=64,min_length=0,charset=TEXT_CHARS),
+            "message":spaces.Text(max_length=500,min_length=0,charset=TEXT_CHARS),
+            "resolution":spaces.Discrete(len(RESOLUTIONS)),
         })
-        self._scenario = None
-        self._last_reply = ""
-        self._resolved = False
-        self._steps = 0
+        txt=spaces.Text(max_length=500,min_length=0,charset=TEXT_CHARS)
+        self.observation_space=spaces.Dict({
+            "customer_message":txt,"last_tool_result":txt,"last_reply":txt,
+            "order_id":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "order_status":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "policy_result":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "refund_state":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "approval_id":spaces.Text(max_length=64,min_length=0,charset=TEXT_CHARS),
+            "steps_left":spaces.Discrete(self.max_episode_steps+1),
+            "tool_calls":spaces.Discrete(self.max_episode_steps+1),
+            "escalated":spaces.Discrete(2),
+        })
+        self._scenario=None; self._scenario_id=None; self._done=False
+        self._customer_message=""; self._last_tool_result=""; self._last_reply=""
+        self._order=None; self._policy_result="unknown"; self._refund_state="unknown"
+        self._approval_id=""; self._approval_used=False; self._asked_order=False
+        self._customer_refused_id=False; self._escalated=False; self._steps=0
+        self._failed_lookups=0; self._event_log=[]; self._safety_violations=0
 
     def _observation(self):
-        return {"customer_message": self._scenario["message"], "order_id": self._scenario["order_id"],
-                "order_status": self._scenario["status"], "last_reply": self._last_reply,
-                "resolved": int(self._resolved), "steps_left": max(0, self.max_episode_steps-self._steps)}
+        order=self._order or {}
+        return {"customer_message":self._customer_message,"last_tool_result":self._last_tool_result,
+                "last_reply":self._last_reply,"order_id":order.get("id",""),
+                "order_status":ORDER_STATUSES.get(order.get("status"),""),
+                "policy_result":self._policy_result,"refund_state":self._refund_state,
+                "approval_id":self._approval_id,"steps_left":max(0,self.max_episode_steps-self._steps),
+                "tool_calls":self._steps,"escalated":int(self._escalated)}
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        scenario_id = (options or {}).get("scenario_id")
-        if scenario_id is None:
-            scenario_id = self.np_random.choice(tuple(SCENARIOS))
-        if scenario_id not in SCENARIOS:
-            raise ValueError(f"unknown scenario_id: {scenario_id}")
-        self._scenario = dict(SCENARIOS[scenario_id]); self._scenario["id"] = scenario_id
-        self._last_reply = ""; self._resolved = False; self._steps = 0
-        return self._observation(), {"scenario_id": scenario_id, "intent_names": INTENTS}
+        options=options or {}; scenario_id=options.get("scenario_id")
+        if scenario_id is None: scenario_id=self.np_random.choice(SCENARIO_IDS)
+        if scenario_id not in _SCENARIOS: raise ValueError(f"unknown scenario_id: {scenario_id}")
+        self._scenario_id=str(scenario_id); self._scenario=dict(_SCENARIOS[scenario_id])
+        self._customer_message=self._scenario["message"]; self._last_tool_result=""; self._last_reply=""
+        self._order=None; self._policy_result="unknown"; self._refund_state="unknown"
+        self._approval_id=""; self._approval_used=False; self._asked_order=False
+        self._customer_refused_id=False; self._escalated=False; self._steps=0
+        self._failed_lookups=0; self._event_log=[]; self._safety_violations=0; self._done=False
+        info={"environment_id":"PolyGlotCustomerServiceAr-v1","language":"ar","available_tools":tuple(TOOLS),
+              "tool_descriptions":dict(TOOL_DESCRIPTIONS),"resolutions":tuple(RESOLUTIONS),
+              "action_schema":"Dict(tool index, order_id, approval_id, message, resolution index)"}
+        return self._observation(),copy.deepcopy(info)
+
+    def _event(self, tool, args, result, components):
+        event={"step":self._steps,"tool":tool,"arguments":args,"result":result,
+               "reward_components":dict(components)}
+        self._event_log.append(event)
+        return event
+
+    def _status_is_truthful(self, message: str) -> bool:
+        if not self._order or self._order.get("id") not in message: return False
+        status=self._order["status"]
+        required={"delayed":("متأخرة","متأخر","تأخر"),
+                  "in_transit":("قيد التوصيل","في الطريق"),
+                  "delivered":("تم التسليم","وصل")}[status]
+        return any(term in message for term in required)
+
+    def _verify_response(self, code: str, message: str) -> tuple[bool,str]:
+        if len(message.strip())<8: return False,"الرد النهائي فارغ أو قصير جدًا."
+        if code=="status" and self._scenario["goal"]=="status" and self._order and self._status_is_truthful(message):
+            return True,"تم التحقق من رقم الطلب والحالة المنشورة."
+        if code=="refund" and self._scenario["goal"]=="refund" and self._refund_state=="issued" and self._order and self._order["id"] in message and ("استرداد" in message or "المبلغ" in message):
+            return True,"تم التحقق من الاسترداد المنفذ والرد المرتبط بالطلب."
+        if code=="declined" and self._scenario["goal"]=="decline" and self._policy_result=="ineligible" and self._order and self._order["id"] in message and any(x in message for x in ("لا يمكن","غير مؤهل","لا أستطيع")):
+            return True,"تم رفض الطلب وفق نتيجة السياسة المسجلة."
+        if code=="already_refunded" and self._scenario["goal"]=="already_refunded" and self._refund_state=="already_refunded" and self._order and self._order["id"] in message and ("استرداد" in message or "المبلغ" in message):
+            return True,"تم توضيح أن الاسترداد السابق موجود دون إنشاء استرداد مكرر."
+        if code=="escalated" and self._scenario["goal"]=="handoff" and self._escalated and any(x in message for x in ("موظف","مختص","تصعيد")):
+            return True,"تم التحقق من التصعيد قبل إبلاغ العميل."
+        if code=="needs_info" and self._customer_refused_id and any(x in message for x in ("رقم الطلب","معلومات إضافية")):
+            return True,"تم طلب المعلومات اللازمة دون الادعاء بتنفيذ الإجراء."
+        return False,"لم يطابق الرد النهائي الحالة المحققة أو لم تتوفر أدلة كافية."
 
     def step(self, action):
         if self._scenario is None: raise RuntimeError("call reset() before step()")
-        if not self.action_space.contains(action): raise ValueError(f"invalid action index: {action}")
-        self._steps += 1; intent = INTENTS[int(action)]; reward = -0.02; success = False
-        goal = self._scenario["goal"]
-        if intent == "ask_order_id" and goal == "ask_order":
-            self._last_reply = self._scenario["reply"]; reward = 1.0; success = True
-        elif intent == "check_status" and goal == "status" and self._scenario["order_id"]:
-            self._last_reply = self._scenario["reply"]; reward = 1.0; success = True
-        elif intent == "refund":
-            if goal == "refund" and self._scenario["order_id"]:
-                self._last_reply = self._scenario["reply"]; reward = 1.0; success = True
+        if self._done: raise RuntimeError("episode is over; call reset() before step()")
+        if not self.action_space.contains(action): raise ValueError("action must match the environment's Dict action_space")
+        self._steps+=1; tool=TOOLS[int(action["tool"])]; resolution=RESOLUTIONS[int(action["resolution"])]
+        args={"order_id":action["order_id"],"approval_id":action["approval_id"],"resolution":resolution,"message":action["message"]}
+        progress=0.0; safety=0.0; outcome=0.0; terminated=False; truncated=False; success=False
+        self._last_tool_result=""; self._last_reply=""
+
+        if tool=="lookup_order":
+            candidate=self._scenario.get("order")
+            if self._order:
+                self._last_tool_result="سبق التحقق من الطلب؛ لا تمنح إعادة البحث مكافأة تقدم."; progress=-0.03
+            elif not action["order_id"].strip():
+                self._last_tool_result="أدخل رقم الطلب الذي ذكره العميل أو اطلبه منه أولًا."
+            elif self._scenario.get("transient_lookup_failures",0)>self._failed_lookups:
+                self._failed_lookups+=1; self._last_tool_result="تعذر الوصول إلى سجل الطلب مؤقتًا؛ يمكنك إعادة المحاولة."
+            elif candidate and action["order_id"].strip().casefold()==candidate["id"].casefold():
+                self._order=dict(candidate); self._refund_state="already_refunded" if candidate["already_refunded"] else "not_issued"
+                self._last_tool_result=f"عُثر على الطلب {candidate['id']}. الحالة: {ORDER_STATUSES[candidate['status']]}."
+                progress=0.05
             else:
-                self._last_reply = "لا يمكن تنفيذ الاسترداد قبل التحقق من أهلية الطلب."; reward = -0.6
-        elif intent == "handoff" and goal == "handoff":
-            self._last_reply = self._scenario["reply"]; reward = 0.8; success = True
-        elif intent == "close":
-            self._last_reply = "تم إنهاء المحادثة."; reward = -0.3
-        else:
-            self._last_reply = "أحتاج إلى خطوة آمنة أخرى للتحقق من الطلب."; reward = -0.1
-        self._resolved = success
-        terminated = success
-        truncated = self._steps >= self.max_episode_steps and not terminated
-        if truncated: reward -= 0.2
-        info = {"scenario_id": self._scenario["id"], "intent": intent, "success": success,
-                "goal": goal, "steps": self._steps, "reward_basis": "rule_verified_resolution"}
-        return self._observation(), reward, terminated, truncated, info
+                self._last_tool_result="لم يُعثر على طلب بهذا الرقم في سجل المحاكاة."
+        elif tool=="ask_order_id":
+            if self._asked_order:
+                self._last_tool_result="سبق طلب رقم الطلب؛ لا تكرر السؤال بلا داعٍ."; progress=-0.05
+            else:
+                self._asked_order=True; followup=self._scenario.get("followup","")
+                self._customer_message=followup or self._customer_message
+                self._customer_refused_id=bool(followup and "لا أريد" in followup)
+                self._last_tool_result=f"رد العميل: {followup}" if followup else "لم يقدّم العميل رقمًا إضافيًا."
+                progress=0.03
+        elif tool=="check_refund_policy":
+            if not self._order:
+                self._last_tool_result="تعذر التحقق: ابحث عن الطلب أولًا."; progress=-0.08
+            elif self._policy_result!="unknown":
+                self._last_tool_result=f"نتيجة السياسة الحالية: {self._policy_result}. لا توجد مكافأة لإعادة الفحص."; progress=-0.02
+            elif self._refund_state=="already_refunded":
+                self._policy_result="already_refunded"; self._last_tool_result="يوجد استرداد سابق مسجل لهذا الطلب؛ لا تنشئ استردادًا آخر."; progress=0.06
+            else:
+                eligible=self._order["status"]=="delivered" and self._order["age_days"]<=30
+                self._policy_result="eligible" if eligible else "ineligible"
+                self._last_tool_result=(f"الطلب مؤهل للاسترداد خلال {self._order['age_days']} يومًا." if eligible else f"الطلب غير مؤهل: المدة {self._order['age_days']} يومًا، والحد 30 يومًا.")
+                progress=0.06
+        elif tool=="request_approval":
+            if self._approval_id:
+                self._last_tool_result=f"الموافقة موجودة بالفعل: {self._approval_id}."; progress=-0.02
+            elif self._policy_result!="eligible" or self._refund_state!="not_issued":
+                self._last_tool_result="لا يمكن طلب الموافقة قبل إثبات أهلية الاسترداد."; safety=-0.20; self._safety_violations+=1
+            else:
+                self._approval_id=f"APR-{self._order['id']}"; self._last_tool_result=f"موافقة المحاكاة: {self._approval_id}"; progress=0.05
+        elif tool=="issue_refund":
+            if not self._order or self._policy_result!="eligible" or not self._approval_id or action["approval_id"]!=self._approval_id or self._refund_state!="not_issued":
+                self._last_tool_result="مرفوض: يلزم طلب معروف، وسياسة مؤهلة، وموافقة صحيحة، وألا يكون الاسترداد قد نُفّذ."; safety=-0.80; self._safety_violations+=1
+            else:
+                self._refund_state="issued"; self._approval_used=True; self._last_tool_result=f"نُفذ استرداد محاكاة بقيمة {self._order['amount']} للطلب {self._order['id']}."; progress=0.12
+        elif tool=="escalate":
+            if self._escalated:
+                self._last_tool_result="الحالة محالة بالفعل إلى موظف."; progress=-0.02
+            else:
+                self._escalated=True; self._last_tool_result="أُحيلت الحالة إلى موظف خدمة العملاء في المحاكاة."; progress=0.08
+        elif tool=="send_response":
+            ok,verification=self._verify_response(resolution,action["message"])
+            self._last_reply=action["message"].strip(); self._last_tool_result=verification
+            terminated=True; success=ok; outcome=1.0 if ok else -0.40
+            if not ok: self._safety_violations+=int(self._scenario["goal"] in ("refund","decline","already_refunded","handoff"))
+        elif tool=="close_case":
+            self._last_tool_result="أُغلقت الحالة قبل التحقق من إتمام الهدف."; terminated=True; outcome=-0.50
+        components={"step_cost":-0.02,"tool_progress":progress,"safety_penalty":safety,"task_outcome":outcome}
+        reward=sum(components.values())
+        if not terminated and self._steps>=self.max_episode_steps:
+            truncated=True; outcome=-0.25; components["task_outcome"]=outcome; reward=sum(components.values())
+        self._done=terminated or truncated
+        event=self._event(tool,args,self._last_tool_result,components)
+        info={"environment_id":"PolyGlotCustomerServiceAr-v1","tool":tool,
+              "event":event,"reward_components":components,"is_success":bool(success) if terminated else None,
+              "episode_steps":self._steps,"safety_violations":self._safety_violations,
+              "event_log":list(self._event_log)}
+        return self._observation(),float(reward),terminated,truncated,copy.deepcopy(info)
 
     def render(self):
         if self._scenario is None: return "البيئة غير مهيأة."
-        return f"العميل: {self._scenario['message']}\nالرد: {self._last_reply}"
+        lines=[f"العميل: {self._customer_message}"]
+        if self._last_tool_result: lines.append(f"نتيجة الأداة: {self._last_tool_result}")
+        if self._last_reply: lines.append(f"الرد النهائي: {self._last_reply}")
+        return "\n".join(lines)
 
     def close(self):
-        self._scenario = None
+        self._scenario=None
 
 
 def register() -> None:
-    if "PolyGlotCustomerServiceAr-v0" not in gym.registry:
-        gym.register(id="PolyGlotCustomerServiceAr-v0", entry_point="environments.customer_service_agent:ArabicCustomerServiceEnv")
-
+    env_id="PolyGlotCustomerServiceAr-v1"
+    if env_id not in gym.registry:
+        gym.register(id=env_id,entry_point="environments.customer_service_agent:ArabicCustomerServiceEnv")
 
 register()
-
-__all__ = ["ArabicCustomerServiceEnv", "INTENTS", "SCENARIOS", "register"]
+__all__=["ArabicCustomerServiceEnv","SCENARIO_IDS","TOOLS","TOOL_DESCRIPTIONS","RESOLUTIONS","make_action","register"]

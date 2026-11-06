@@ -64,13 +64,13 @@ python -m unittest discover -s tests -v
 
 ### Customer-service environment
 
-The Arabic Gymnasium environment is a fully executable benchmark fixture with deterministic state transitions and rule-based reward verification. Scenarios are project-authored and are not real customer records. Run it with:
+The Arabic Gymnasium v1 environment is an executable multi-step simulation with structured tool calls, hidden ground-truth state, a rule-based final verifier, bounded reward components, safety penalties, reproducible event logs, and a step budget. Its seven synthetic scenarios cover status lookup, refunds, missing information, escalation, ineligible/duplicate refunds, and a transient tool failure. It performs no real customer or payment actions. Keep trainer-side `info` fields out of the agent observation. Run the end-to-end refund episode with:
 
 ```bash
 python -m environments.customer_service_agent.demo
 ```
 
-Arabic task definitions are in `evaluation/benchmarks/ar_tasks.json`. English task parity and native-speaker-reviewed benchmark tasks for the additional data languages remain planned; a data sample alone is not a validated evaluation benchmark. `evaluation/language_coverage_report.json` is a point-in-time report for the bundled samples.
+Arabic development tasks are in `evaluation/benchmarks/ar_tasks.json`. The fixture and its task descriptions have not yet received native-speaker benchmark validation. English task parity and native-speaker-reviewed benchmark tasks for additional data languages remain planned; a data sample alone is not a validated evaluation benchmark. `evaluation/language_coverage_report.json` is a point-in-time report for the bundled samples.
 
 ### Importing real source data
 

@@ -1,0 +1,6 @@
+# Optional training stack; keep separate from scripts/requirements.txt.
+torch>=2.2
+transformers>=4.40,<5.0
+accelerate>=0.28
+peft>=0.10
+safetensors>=0.4

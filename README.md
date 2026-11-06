@@ -63,6 +63,18 @@ python -m unittest discover -s tests -v
 
 `lang_id.py` uses fastText's language-identification model and normalizes predictions to ISO 639-1 when available, otherwise ISO 639-3. It downloads the official model to a local cache on first run; alternatively, pass `--model /path/to/lid.176.ftz`. Low-confidence results and declared/detected conflicts are marked `needs_review`; the input language tag is preserved. Unlabelled input is routed to review by default; `--auto-accept-unlabelled` is an opt-in for workflows that accept the finite detector's risk. fastText lid.176 has finite coverage and is not a universal language oracle. If a trusted source tag is outside detector coverage, the tag is retained instead of replacing it with a guess. Licensed data for languages it does not confidently detect can still be imported using a verified source tag.
 
+### Experimental fine-tuning
+
+The optional `scripts/fine_tune.py` trains a causal language model on reviewed JSONL records. It defaults to LoRA so the base model remains unchanged and only a small adapter is saved. Training dependencies are intentionally separate from the data pipeline:
+
+```bash
+pip install -r scripts/requirements-training.txt
+python scripts/fine_tune.py --model <huggingface-model-id> --data /path/to/reviewed.jsonl --dry-run
+python scripts/fine_tune.py --model <huggingface-model-id> --data /path/to/reviewed.jsonl --output outputs/polyglot-lora
+```
+
+If `--data` is omitted, the script searches `datasets/incoming/*/curated/*/sft/auto_import.jsonl`. Only records with `human_review_status: reviewed` are used by default. The script creates a deterministic train/validation split, supports chat templates when available, records languages and data files in `training_manifest.json`, and does not upload models or data. Use `--dry-run` first, and review licenses and the source manifest before training or publishing an adapter. This is an experimental SFT path, not evidence that the resulting model is factually correct or production-safe.
+
 ### Customer-service environment
 
 The Arabic Gymnasium v1 environment is an executable multi-step simulation with structured tool calls, hidden ground-truth state, a rule-based final verifier, bounded reward components, safety penalties, reproducible event logs, and a step budget. Its seven synthetic scenarios cover status lookup, refunds, missing information, escalation, ineligible/duplicate refunds, and a transient tool failure. It performs no real customer or payment actions. Keep trainer-side `info` fields out of the agent observation. Run the end-to-end refund episode with:

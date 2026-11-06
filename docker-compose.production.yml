@@ -1,0 +1,49 @@
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    command:
+      - "${BASE_MODEL:?Set BASE_MODEL to the exact base model used for LoRA training}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--enable-lora"
+      - "--lora-modules"
+      - "${VLLM_MODEL_NAME:?Set VLLM_MODEL_NAME}=${LORA_ADAPTER_PATH:?Set LORA_ADAPTER_PATH}"
+      - "--max-lora-rank"
+      - "${MAX_LORA_RANK:-8}"
+      - "--api-key"
+      - "${VLLM_API_KEY:?Set VLLM_API_KEY}"
+    environment:
+      HF_TOKEN: "${HF_TOKEN:-}"
+      HUGGING_FACE_HUB_TOKEN: "${HF_TOKEN:-}"
+    volumes:
+      - "${MODEL_CACHE_PATH:-./.cache/huggingface}:/root/.cache/huggingface"
+      - "${ADAPTER_HOST_PATH:-./outputs/polyglot-lora}:${LORA_ADAPTER_PATH:?Set LORA_ADAPTER_PATH}:ro"
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.gateway
+    environment:
+      VLLM_BASE_URL: http://vllm:8000
+      VLLM_MODEL_NAME: "${VLLM_MODEL_NAME:?Set VLLM_MODEL_NAME}"
+      VLLM_API_KEY: "${VLLM_API_KEY:?Set VLLM_API_KEY}"
+      GATEWAY_API_KEY: "${GATEWAY_API_KEY:?Set GATEWAY_API_KEY}"
+      UPSTREAM_TIMEOUT_SECONDS: "${UPSTREAM_TIMEOUT_SECONDS:-120}"
+    depends_on:
+      vllm:
+        condition: service_started
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    restart: unless-stopped

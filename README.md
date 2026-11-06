@@ -85,6 +85,16 @@ python -m environments.customer_service_agent.demo
 
 Arabic development tasks are in `evaluation/benchmarks/ar_tasks.json`. The fixture and its task descriptions have not yet received native-speaker benchmark validation. English task parity and native-speaker-reviewed benchmark tasks for additional data languages remain planned; a data sample alone is not a validated evaluation benchmark. `evaluation/language_coverage_report.json` is a point-in-time report for the bundled samples.
 
+### Verifiable benchmark runner
+
+Run the deterministic Arabic baseline over every development task and write an auditable JSON report:
+
+```bash
+python evaluation/run_benchmark.py --output /tmp/polyglot-benchmark-report.json
+```
+
+The report includes task success, safe completion, unsafe-action rate, truncation rate, tool-call count, reward and the full event log. The baseline is intentionally inspectable and is not an LLM score; use it as a sanity check before adding model adapters. The current development fixture produces seven successful, safe episodes with the baseline, but it is not yet a native-speaker-validated public benchmark.
+
 ### Importing real source data
 
 `scripts/import_oasst.py --list-languages` lists the current OASST1 source tags. Use `--source-lang` for one source tag, or `--all-languages --output-root datasets/curated` to stream the source once and write separate monolingual files. Canonical ISO codes name folders; tags such as `pt-BR` remain attached to their records. The bundled snapshot contains 1,661 human-reviewed SFT pairs across 23 languages from the tags that passed its filters; each is capped at 100 records, and smaller counts reflect the source's available records, not synthetic padding. The importer excludes synthetic/deleted messages and records without zero PII/spam flags, checks common contact patterns, and records source IDs and license metadata. `--limit` is for tests or samples only. `scripts/language_report.py` reports sample counts, score distributions, human review, duplicates, source mix, and review routing separately per language. Use `scripts/scaffold_language.py --code <ISO-code>` to create all dataset-stage folders and a benchmark card marked as requiring native-speaker authorship; it deliberately does not fabricate evaluation tasks. Other sources must be acquired under their own terms and normalized with full provenance. Do not infer a license from a hosting platform or crawl alone.

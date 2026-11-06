@@ -30,6 +30,7 @@ class BenchmarkRunnerTests(unittest.TestCase):
         self.assertTrue(all(task["split"] == "development" for task in development))
         self.assertTrue(all(task["split"] == "hidden" for task in hidden))
         self.assertEqual({task["id"] for task in development} & {task["id"] for task in hidden}, set())
+        self.assertEqual(len({task["scenario_id"] for task in all_tasks}), 30)
 
     def test_v01_development_is_safe_for_deterministic_baseline(self):
         tasks = load_tasks(Path("evaluation/benchmarks/ar_tasks_v0.1.json"), split="development")

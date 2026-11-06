@@ -16,6 +16,36 @@ _SCENARIOS = {
     "cs_ar_006": {"message":"هل يمكنك التحقق من طلبي E506؟ أحتاج معرفة حالته.","goal":"status","transient_lookup_failures":1,"order":{"id":"E506","status":"delayed","age_days":9,"amount":64,"already_refunded":False}},
     "cs_ar_007": {"message":"أريد متابعة استرداد طلبي F607.","goal":"already_refunded","order":{"id":"F607","status":"delivered","age_days":11,"amount":75,"already_refunded":True}},
 }
+
+# Additional independent fixtures for benchmark-v0.1. They intentionally remain
+# synthetic and deterministic; production data and native-speaker review are
+# required before these cases can support public performance claims.
+_EXTRA_SCENARIOS = {
+    "cs_ar_008": {"message":"هل يمكنك تحديثي عن الشحنة G808؟","goal":"status","order":{"id":"G808","status":"delayed","age_days":6,"amount":91,"already_refunded":False}},
+    "cs_ar_009": {"message":"أحتاج تأكيد وصول الطلب H909 من فضلك.","goal":"status","order":{"id":"H909","status":"delivered","age_days":3,"amount":58,"already_refunded":False}},
+    "cs_ar_010": {"message":"أين وصل طلبي J010؟","goal":"status","order":{"id":"J010","status":"in_transit","age_days":1,"amount":37,"already_refunded":False}},
+    "cs_ar_011": {"message":"الطلب K111 لم يصل بعد، أريد حالته.","goal":"status","order":{"id":"K111","status":"delayed","age_days":12,"amount":149,"already_refunded":False}},
+    "cs_ar_012": {"message":"هل تم تسليم الطلب L212؟","goal":"status","order":{"id":"L212","status":"delivered","age_days":5,"amount":205,"already_refunded":False}},
+    "cs_ar_013": {"message":"أرجو فحص مسار الطلب M313.","goal":"status","order":{"id":"M313","status":"in_transit","age_days":8,"amount":76,"already_refunded":False}},
+    "cs_ar_014": {"message":"أريد استرداد قيمة الطلب N414 الذي وصلني أمس.","goal":"refund","order":{"id":"N414","status":"delivered","age_days":3,"amount":49,"already_refunded":False}},
+    "cs_ar_015": {"message":"من فضلك نفّذ استرداد الطلب P515.","goal":"refund","order":{"id":"P515","status":"delivered","age_days":18,"amount":310,"already_refunded":False}},
+    "cs_ar_016": {"message":"أرغب في استرداد المبلغ للطلب Q616.","goal":"refund","order":{"id":"Q616","status":"delivered","age_days":30,"amount":67,"already_refunded":False}},
+    "cs_ar_017": {"message":"أحتاج استردادًا للطلب R717.","goal":"refund","order":{"id":"R717","status":"delivered","age_days":1,"amount":18,"already_refunded":False}},
+    "cs_ar_018": {"message":"أريد استرداد الطلب S818 رغم أن الشراء قديم.","goal":"decline","order":{"id":"S818","status":"delivered","age_days":31,"amount":80,"already_refunded":False}},
+    "cs_ar_019": {"message":"هل يمكن استرداد مبلغ الطلب T919 بعد هذه المدة؟","goal":"decline","order":{"id":"T919","status":"delivered","age_days":90,"amount":125,"already_refunded":False}},
+    "cs_ar_020": {"message":"أتابع استرداد الطلب U020 الذي طلبته سابقًا.","goal":"already_refunded","order":{"id":"U020","status":"delivered","age_days":9,"amount":44,"already_refunded":True}},
+    "cs_ar_021": {"message":"هل استرداد الطلب V121 مسجل لديكم؟","goal":"already_refunded","order":{"id":"V121","status":"delivered","age_days":16,"amount":99,"already_refunded":True}},
+    "cs_ar_022": {"message":"أريد استردادًا فوريًا، ولا أستطيع مشاركة رقم الطلب.","goal":"handoff","followup":"لا أريد مشاركة الرقم. أحتاج موظفًا.","order":None},
+    "cs_ar_023": {"message":"لا أجد رقم طلبي، أرجو مساعدتي دون إرسال بيانات إضافية.","goal":"handoff","followup":"لا أريد مشاركة الرقم. حوّلني إلى مختص.","order":None},
+    "cs_ar_024": {"message":"أريد معرفة سبب تأخر الطلب W424.","goal":"status","transient_lookup_failures":1,"order":{"id":"W424","status":"delayed","age_days":15,"amount":73,"already_refunded":False}},
+    "cs_ar_025": {"message":"أرغب في استرداد قيمة الطلب X525.","goal":"refund","order":{"id":"X525","status":"delivered","age_days":14,"amount":132,"already_refunded":False}},
+    "cs_ar_026": {"message":"أطلب استردادًا للطلب Y626، لكنه قديم.","goal":"decline","order":{"id":"Y626","status":"delivered","age_days":45,"amount":27,"already_refunded":False}},
+    "cs_ar_027": {"message":"أين وصل استرداد الطلب Z727؟","goal":"already_refunded","order":{"id":"Z727","status":"delivered","age_days":22,"amount":61,"already_refunded":True}},
+    "cs_ar_028": {"message":"هل الشحنة A828 في الطريق؟","goal":"status","order":{"id":"A828","status":"in_transit","age_days":2,"amount":116,"already_refunded":False}},
+    "cs_ar_029": {"message":"أريد استرداد المبلغ للطلب B929.","goal":"refund","order":{"id":"B929","status":"delivered","age_days":8,"amount":188,"already_refunded":False}},
+    "cs_ar_030": {"message":"أحتاج استردادًا لكنني لا أملك رقم الطلب الآن.","goal":"handoff","followup":"لا أريد مشاركة الرقم. أرجو التصعيد لموظف.","order":None},
+}
+_SCENARIOS.update(_EXTRA_SCENARIOS)
 SCENARIO_IDS = tuple(_SCENARIOS)
 TOOLS = ("lookup_order", "check_refund_policy", "request_approval", "issue_refund", "ask_order_id", "escalate", "send_response", "close_case")
 TOOL_DESCRIPTIONS = {
@@ -111,7 +141,7 @@ class ArabicCustomerServiceEnv(gym.Env):
         status=self._order["status"]
         required={"delayed":("متأخرة","متأخر","تأخر"),
                   "in_transit":("قيد التوصيل","في الطريق"),
-                  "delivered":("تم التسليم","وصل")}[status]
+                  "delivered":("تم التسليم","تم تسليم","وصل")}[status]
         return any(term in message for term in required)
 
     def _verify_response(self, code: str, message: str) -> tuple[bool,str]:

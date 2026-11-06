@@ -12,6 +12,21 @@
 - Evaluate agents in environments with explicit actions, observations, and verifiable rewards.
 - Separate permissively licensed open code from source-governed datasets and any future separately licensed commercial collections.
 
+## Long-term ambition
+
+Our long-term goal is to build a trusted, continuously improving multilingual data and evaluation asset that helps AI agents perform real tasks across languages—not merely to accumulate files or claim coverage. If the project develops genuinely differentiated data, credible benchmarks, sustained adoption, and clear rights, it may become strategically valuable to AI companies and could someday be an acquisition candidate. An acquisition is neither guaranteed nor the definition of success.
+
+We intend to work toward that goal through six evidence-based capabilities:
+
+1. **Distinctive, rights-cleared data:** collect or license high-value agent trajectories, tool-use traces, and task outcomes under explicit agreements that permit the intended uses. Preserve consent, attribution, provenance, retention, and deletion requirements. Publicly available corpora are useful starting points, not an exclusive data advantage.
+2. **Meaningful language coverage:** prioritize languages and dialects where current agent performance is weak, with native-speaker review, script and dialect metadata, and quality measurements calibrated within each language. Depth in a focused set of languages is more valuable than unsupported claims of universal coverage.
+3. **Trusted real-task benchmarks:** build reproducible evaluations for customer service, research, and coding. Measure task completion, correctness, safety, and language-specific failure modes. Keep benchmark development separate from training data to reduce contamination, and publish reviewer and validation status.
+4. **A durable data engine:** make collection, rights checks, privacy screening, deduplication, quality review, and dataset updates traceable and repeatable. The differentiator should be the reliable process and improving data—not just the pipeline code.
+5. **Demonstrated customer impact:** run consented pilots with organizations and publish reproducible before/after results, such as resolution rate, error rate, escalation rate, and performance by language. Do not imply customer outcomes until measured and approved for publication.
+6. **A sustainable product model:** explore hosted evaluation, workflow tooling, and separately licensed commercial datasets while keeping the Apache-2.0 codebase and each dataset's own terms clear. Build toward sustained usage and revenue without weakening contributors' rights or misrepresenting open-source data as proprietary.
+
+The first practical wedge is a narrow, measurable use case—such as Arabic customer support and its dialects—with permissioned data and an independently reviewed benchmark. Expand to other languages and tasks only as the project can support them with comparable provenance and validation. The current OASST1 samples and scaffolded benchmark cards are groundwork; they are not exclusive assets, customer validation, or completed multilingual benchmarks.
+
 ## Repository layout
 
 ```text

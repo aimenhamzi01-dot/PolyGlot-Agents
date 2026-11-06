@@ -5,6 +5,8 @@ review status and holdout rules declared in each release manifest.
 
 ## [Unreleased]
 
+- Updated README with the current 72-language import snapshot, reproducible quick-start commands,
+  and audit-only boundaries for Wikimedia and arXiv.
 - Registered Wikimedia and arXiv as audit-only sources with explicit item-level rights blockers;
   neither source is enabled for automated ingestion.
 - Added a Makefile with one-command install, test, validation, and benchmark targets.

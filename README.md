@@ -19,7 +19,7 @@ The following capabilities exist in the repository today and can be inspected or
 | Capability | Current implementation | Boundary today |
 |---|---|---|
 | Multilingual data pipeline | ISO language normalization, language detection, filtering, deduplication, quality scoring, provenance, and per-language reports | Detection and thresholds are finite; language quality still needs native-speaker calibration |
-| Rights-gated ingestion | Pinned-source connectors for OASST1 and Aya, fail-closed rights metadata checks, PII/contact screening, reject reports, duplicate reports, and SHA-256 manifests | The rights gate checks declared evidence; it is not automated legal clearance |
+| Rights-gated ingestion | Pinned-source connectors for OASST1 and Aya, fail-closed rights metadata checks, PII/contact screening, reject reports, duplicate reports, and SHA-256 manifests | The rights gate checks declared evidence; it is not automated legal clearance. Wikimedia and arXiv are audit-only and remain disabled for automated ingestion |
 | Language-neutral environment | Shared Arabic/English/French engine with intent-gated refunds, approval checks, replay protection, and evidence-grounded final claims | Locale packs are synthetic development fixtures, not reviewed public benchmarks |
 | Executable evaluation | 30 deterministic scenarios, 24 Arabic development cards, and 7 English plus 7 French synthetic development cards with machine-checkable expected outcomes, safe tool contracts, rewards, event logs, and a rule-based baseline | No protected hidden-test set is provisioned; all locale task wording and fixtures still need native-speaker validation |
 | Benchmark runner | Auditable JSON reports with benchmark, environment, and evaluator SHA-256; expected-versus-actual outcomes, safety, latency/throughput, optional token cost, failure taxonomy, and scenario/locale breakdowns; strict protocol-matched comparisons | Human review and access-controlled holdout storage remain prerequisites for official scores |
@@ -28,6 +28,27 @@ The following capabilities exist in the repository today and can be inspected or
 | Experimental model path | Optional LoRA fine-tuning and an OpenAI-compatible evaluation adapter | No claim of model quality, production safety, or customer impact |
 
 The current implementation is therefore a **working research foundation**, not a completed global platform. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md) and [Data licenses](docs/DATA_LICENSES.md) for the operational boundaries.
+
+## Current training-data snapshot
+
+The latest local import run produced **229,420 accepted records across 72 languages** from the pinned OASST1 and Aya revisions. The run rejected 16,651 records for being duplicates, too short, or too long. The snapshot is written to `datasets/incoming/<run-id>/` and is intentionally ignored by Git; it is an incoming review artifact, not a curated release and must not be treated as a native-speaker-validated benchmark.
+
+The 24 languages listed in [`configs/languages.yaml`](configs/languages.yaml) are all represented in the snapshot. The import also discovered 48 additional language codes. Their presence is descriptive only: each language still requires a review profile, calibration, and an evaluation card before promotion. The full per-language counts and source hashes are recorded in the generated `manifest.json`.
+
+Wikimedia and arXiv have been registered for **audit-only** review. They are not enabled for full-text ingestion because Wikimedia content has project- and item-level licensing and arXiv licenses are version-specific. See [Data licenses](docs/DATA_LICENSES.md) and [`configs/sources.yaml`](configs/sources.yaml).
+
+## Quick start
+
+Install the test and pipeline dependencies, run the local checks, and reproduce the approved-source import into an isolated incoming directory:
+
+```bash
+make install
+make test
+make check
+python -m scripts.auto_import --output-root datasets/incoming
+```
+
+The importer uses the revisions pinned in `configs/sources.yaml`, writes a manifest and per-language reject/duplicate reports, and never promotes records into `datasets/curated` automatically. Review rights, privacy, language quality, and attribution before any promotion.
 
 ## Future ambition — not current capability
 
@@ -102,7 +123,7 @@ licensed data
 
 ### Current status and remaining gaps
 
-The repository already has approved-source importing with pinned revisions, provenance and deduplication; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable customer-service environment with Arabic, English, and French locale packs; locale-aware deterministic baselines; an independent policy engine; an OpenAI-compatible evaluation adapter; publishable Markdown/HTML reports; and a CI regression gate. The locale packs are synthetic development fixtures and are not yet native-speaker-validated public benchmarks. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md).
+The repository already has approved-source importing with pinned revisions, provenance and deduplication; a verified 229,420-record incoming snapshot across 72 languages; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable customer-service environment with Arabic, English, and French locale packs; locale-aware deterministic baselines; an independent policy engine; an OpenAI-compatible evaluation adapter; publishable Markdown/HTML reports; and a CI regression gate. The locale packs are synthetic development fixtures and are not yet native-speaker-validated public benchmarks. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md).
 
 The highest-priority gaps are permissioned or partner data, native-speaker review and calibration for each locale, protected hidden test storage, dialect-specific task authoring, production regression data, comparisons against real models, and customer pilots. The current red-team suite still needs broader adversarial authoring and reviewed language coverage before it can support external safety claims.
 

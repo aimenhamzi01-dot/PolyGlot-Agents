@@ -19,11 +19,13 @@ try:
     from scripts.filter_data import screen
     from scripts.import_hf import import_aya
     from scripts.import_oasst import make_records
+    from scripts.rights_engine import RightsError, validate_record, validate_source
 except ModuleNotFoundError:
     from deduplicate import fingerprint
     from filter_data import screen
     from import_hf import import_aya
     from import_oasst import make_records
+    from rights_engine import RightsError, validate_record, validate_source
 
 DEFAULT_CONFIG = Path("configs/sources.yaml")
 
@@ -40,6 +42,11 @@ def run_id(source_names: list[str], revisions: list[str]) -> str:
     payload = "|".join(source_names + revisions)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     return f"{stamp}-{hashlib.sha256(payload.encode()).hexdigest()[:10]}"
+
+
+def json_digest(value: object) -> str:
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def source_rows(name: str, cfg: dict, limit: int | None) -> dict[str, list[dict]]:
@@ -106,6 +113,7 @@ def main() -> None:
     parser.add_argument("--source", action="append", dest="sources", help="Repeat to select named source; default is all enabled sources")
     parser.add_argument("--limit-per-language", type=int, help="Safety limit for each source and language")
     parser.add_argument("--keep-run", action="store_true", help="Do not replace an existing run directory")
+    parser.add_argument("--validate-only", action="store_true", help="Validate source rights metadata without downloading data")
     args = parser.parse_args()
     if args.limit_per_language is not None and args.limit_per_language < 1:
         parser.error("--limit-per-language must be positive")
@@ -117,6 +125,14 @@ def main() -> None:
     disabled = [name for name in selected if not source_cfg[name].get("enabled", False)]
     if disabled:
         parser.error("source(s) are disabled in config: " + ", ".join(disabled))
+    try:
+        for name in selected:
+            validate_source(name, source_cfg[name])
+    except RightsError as exc:
+        parser.error(str(exc))
+    if args.validate_only:
+        print(json.dumps({"valid": True, "sources": selected}, ensure_ascii=False, indent=2))
+        return
     revisions = [str(source_cfg[name].get("revision", "")) for name in selected]
     run = run_id(selected, revisions)
     root = args.output_root / run
@@ -130,17 +146,33 @@ def main() -> None:
         if not cfg.get("revision"):
             raise SystemExit(f"{name}: pinned revision is required for reproducible imports")
         imported = source_rows(name, cfg, args.limit_per_language)
-        source_manifest.append({"name": name, "dataset_id": cfg.get("dataset_id"), "revision": cfg["revision"], "records": sum(map(len, imported.values()))})
+        imported_rows = [row for rows in imported.values() for row in rows]
+        try:
+            for row in imported_rows:
+                validate_record(row)
+        except RightsError as exc:
+            raise SystemExit(str(exc)) from exc
+        source_manifest.append({
+            "name": name,
+            "dataset_id": cfg.get("dataset_id"),
+            "revision": cfg["revision"],
+            "license": cfg["license"],
+            "license_url": cfg["license_url"],
+            "rights_status": cfg["rights_status"],
+            "allowed_uses": cfg["allowed_uses"],
+            "commercial_use": cfg["commercial_use"],
+            "records": len(imported_rows),
+            "content_sha256": json_digest(imported_rows),
+        })
         for lang, rows in imported.items():
             groups[lang].extend(rows)
-    pipeline_config = load_sources(Path("configs/sources.yaml"))  # source config is also the audit manifest input
     kept, rejected = screen_and_write(groups, root, {"min_characters": 40, "max_characters": 20000, "language_profiles": {}})
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": run,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "sources": source_manifest,
-        "policy": {"default_destination": "datasets/incoming", "requires_manual_review_before_promotion": True, "raw_data_not_committed": True},
+        "policy": {"default_destination": "datasets/incoming", "requires_manual_review_before_promotion": True, "raw_data_not_committed": True, "rights_gate": "fail_closed"},
         "kept_by_language": dict(kept),
         "rejected_by_reason": dict(rejected),
     }

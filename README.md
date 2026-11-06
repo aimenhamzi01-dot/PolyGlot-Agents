@@ -282,11 +282,15 @@ The adapter sends only the current observation and available tool names, require
 
 ### Automated approved-source import
 
-`scripts/auto_import.py` runs only sources marked `enabled: true` in `configs/sources.yaml`, and every enabled Hugging Face source must have a pinned commit revision. The current approved sources are the reviewed OASST1 conversations and the human-annotated Aya instruction dataset. The run writes to an isolated timestamped directory under `datasets/incoming/`, preserves source revision and license metadata, screens records, removes contact patterns and cross-source duplicates, and writes `manifest.json`, reject reports, and duplicate reports. It never promotes records directly into `datasets/curated`; review the manifest and reports first.
+`scripts/auto_import.py` runs only sources marked `enabled: true` in `configs/sources.yaml`, and every enabled source must pass the fail-closed rights gate in `scripts/rights_engine.py`: pinned revision, source card, license URL, reviewed rights status, allowed uses, explicit redistribution permission, and a commercial-use policy. The current approved sources are the reviewed OASST1 conversations and the human-annotated Aya instruction dataset. The run writes to an isolated timestamped directory under `datasets/incoming/`, preserves source revision and license metadata, records a content SHA-256 for each imported source, screens records, removes contact patterns and cross-source duplicates, and writes a versioned `manifest.json`, reject reports, and duplicate reports. It never promotes records directly into `datasets/curated`; review the manifest and reports first.
 
 For a bounded reproducible run:
 
 ```bash
+# Check source rights metadata without downloading data
+python scripts/auto_import.py --validate-only
+
+# Run a bounded import after validation
 python scripts/auto_import.py --limit-per-language 100
 ```
 

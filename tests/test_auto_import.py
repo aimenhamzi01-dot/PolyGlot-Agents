@@ -1,7 +1,10 @@
 import unittest
 from unittest.mock import patch
+from pathlib import Path
 
+from scripts.auto_import import load_sources
 from scripts.import_hf import import_aya, stable_id
+from scripts.rights_engine import RightsError, validate_record, validate_source
 
 
 class AutoImportTests(unittest.TestCase):
@@ -26,6 +29,20 @@ class AutoImportTests(unittest.TestCase):
     def test_stable_id_changes_when_revision_changes(self):
         row = {"inputs": "hello", "targets": "world"}
         self.assertNotEqual(stable_id("source", "rev-a", row, "en"), stable_id("source", "rev-b", row, "en"))
+
+    def test_configured_sources_pass_fail_closed_rights_gate(self):
+        sources = load_sources(Path("configs/sources.yaml"))
+        validate_source("openassistant_oasst1", sources["openassistant_oasst1"])
+        validate_source("aya_dataset", sources["aya_dataset"])
+
+    def test_unknown_license_is_rejected(self):
+        cfg = {"dataset_card": "https://example.test/card", "license": "unknown", "license_url": "https://example.test/license", "rights_status": "reviewed", "allowed_uses": ["research"], "redistribution": True, "commercial_use": "review_required"}
+        with self.assertRaises(RightsError):
+            validate_source("untrusted", cfg)
+
+    def test_missing_record_rights_are_rejected(self):
+        with self.assertRaises(RightsError):
+            validate_record({"id": "x", "text": "hello"})
 
 
 if __name__ == "__main__":

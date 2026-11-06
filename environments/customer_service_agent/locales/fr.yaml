@@ -1,0 +1,28 @@
+code: fr
+bcp47: fr
+name: French
+script: Latn
+status_labels:
+  delayed: en retard
+  in_transit: en transit
+  delivered: livré
+status_terms:
+  delayed: [en retard, retard]
+  in_transit: [en transit, route]
+  delivered: [livré, livrée, arrivé]
+tool_descriptions:
+  lookup_order: Rechercher une commande avec le numéro fourni par le client.
+  check_refund_policy: Vérifier l'éligibilité au remboursement après avoir trouvé la commande.
+  request_approval: Demander l'approbation d'un superviseur pour un remboursement éligible.
+  issue_refund: Effectuer un remboursement simulé après vérification et approbation.
+  ask_order_id: Demander le numéro de commande; le scénario fournit la réponse du client.
+  escalate: Transférer le dossier à un agent humain pour les cas non résolus.
+  send_response: Envoyer une réponse finale avec un code sémantique vérifiable.
+  close_case: Fermer le dossier; une fermeture prématurée échoue et termine l'épisode.
+customer_messages:
+  status: "Bonjour, je voudrais connaître l'état de la commande {id}."
+  refund: "Je souhaite un remboursement pour la commande {id}."
+  already_refunded: "Je relance le remboursement de ma commande {id}."
+  decline: "Je souhaite un remboursement pour la commande {id}."
+  handoff: "J'ai besoin d'aide mais je ne peux pas partager le numéro de commande."
+  followup: "Je ne veux pas partager le numéro. Merci de me transférer à un agent."

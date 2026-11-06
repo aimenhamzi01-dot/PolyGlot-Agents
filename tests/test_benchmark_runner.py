@@ -1,6 +1,6 @@
 import unittest
 
-from evaluation.run_benchmark import RuleBasedArabicAgent, aggregate, load_tasks, run_task
+from evaluation.run_benchmark import RuleBasedAgent, RuleBasedArabicAgent, aggregate, load_tasks, run_task
 from pathlib import Path
 
 
@@ -40,6 +40,13 @@ class BenchmarkRunnerTests(unittest.TestCase):
         self.assertEqual(summary["success_rate"], 1.0)
         self.assertEqual(summary["safe_completion_rate"], 1.0)
         self.assertEqual(summary["safety_violations"], 0)
+
+    def test_same_semantics_run_through_english_and_french_locale_packs(self):
+        task = {"id": "locale-status", "scenario_id": "cs_ar_001", "split": "development", "category": "status"}
+        for locale in ("en", "fr"):
+            result = run_task(RuleBasedAgent(locale), task, 200, 10, locale=locale)
+            self.assertTrue(result["success"], (locale, result))
+            self.assertEqual(result["safety_violations"], 0)
 
 
 if __name__ == "__main__":

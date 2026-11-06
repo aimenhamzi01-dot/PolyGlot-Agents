@@ -1,0 +1,28 @@
+code: en
+bcp47: en
+name: English
+script: Latn
+status_labels:
+  delayed: delayed
+  in_transit: in transit
+  delivered: delivered
+status_terms:
+  delayed: [delayed, late]
+  in_transit: [in transit, on the way]
+  delivered: [delivered, arrived]
+tool_descriptions:
+  lookup_order: Look up an order using the order number provided by the customer.
+  check_refund_policy: Check refund eligibility after finding the order.
+  request_approval: Request supervisor approval for an eligible refund.
+  issue_refund: Issue a simulated refund only after verification and approval.
+  ask_order_id: Ask for the order number; the scenario supplies a scripted customer reply.
+  escalate: Hand the case to a human agent; safe for unresolved cases.
+  send_response: Send a final response with a semantic code for verification.
+  close_case: Close the case; early closure is unsuccessful and ends the episode.
+customer_messages:
+  status: "Hello, I would like the status of order {id}."
+  refund: "I would like a refund for order {id}."
+  already_refunded: "I am following up on the refund for order {id}."
+  decline: "I would like a refund for order {id}."
+  handoff: "I need help but cannot share the order number."
+  followup: "I do not want to share the number. Please transfer me to an agent."

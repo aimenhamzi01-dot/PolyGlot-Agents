@@ -50,7 +50,7 @@ licensed data
 
 2. **Executable environments, not text-only tests.** Each environment should contain hidden state, explicit tools, permissions, transient and permanent failures, timeouts, idempotency rules, event logs, verifiable rewards and protection against reward hacking. A successful response is not enough; the agent must produce the correct outcome without an unauthorized action.
 
-3. **Deep Arabic and dialect coverage.** Treat `ar-MSA`, Egyptian, Gulf, Levantine, Maghrebi and code-switched Arabic as distinct evaluation dimensions when the task requires it. Preserve script, region, dialect, spelling variation, Arabic and Latin digits, speech-transcription noise and politeness conventions in metadata. Do not claim multilingual coverage from empty language folders.
+3. **Deep language and dialect coverage.** Treat each language, region, script, dialect, and code-switched form as an explicit evaluation dimension when the task requires it. Arabic is the first fixture, not the project boundary. Preserve spelling variation, speech-transcription noise, politeness conventions, and language-specific metadata. Do not claim multilingual coverage from empty language folders.
 
 4. **Independent, versioned and hidden benchmarks.** Maintain public development tasks and a protected test split that never enters training. Version every benchmark, record native-speaker review and inter-rater agreement, and prevent post-hoc changes to published scores. Report performance by language, dialect, scenario and failure type rather than one aggregate score.
 
@@ -85,7 +85,7 @@ licensed data
 
 ### Current status and gaps
 
-The repository already has approved-source importing with pinned revisions, provenance and deduplication; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable Arabic customer-service environment; a deterministic baseline; and an OpenAI-compatible evaluation adapter. The current development baseline passes seven Arabic tasks safely, but this is a synthetic development fixture and not yet a native-speaker-validated public benchmark.
+The repository already has approved-source importing with pinned revisions, provenance and deduplication; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable customer-service environment with Arabic, English, and French locale packs; locale-aware deterministic baselines; and an OpenAI-compatible evaluation adapter. The locale packs are synthetic development fixtures and are not yet native-speaker-validated public benchmarks. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md).
 
 The highest-priority gaps are permissioned or partner data, native-speaker review, a hidden test split, multiple Arabic dialects, an independent policy engine, a review/annotation workflow, production regression data, cost and latency reporting, comparisons against real models, and customer pilots.
 

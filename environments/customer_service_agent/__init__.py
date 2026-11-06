@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import gymnasium as gym
 from gymnasium import spaces
+from .locales import available_locales, load_locale
 
 # Synthetic, deterministic fixtures. Ground-truth fields are private environment
 # state and are never included in observations or nonterminal tool results.
@@ -48,19 +49,10 @@ _EXTRA_SCENARIOS = {
 _SCENARIOS.update(_EXTRA_SCENARIOS)
 SCENARIO_IDS = tuple(_SCENARIOS)
 TOOLS = ("lookup_order", "check_refund_policy", "request_approval", "issue_refund", "ask_order_id", "escalate", "send_response", "close_case")
-TOOL_DESCRIPTIONS = {
-    "lookup_order":"ابحث عن طلب باستخدام رقم الطلب الذي قدّمه العميل.",
-    "check_refund_policy":"تحقق من أهلية الاسترداد بعد العثور على الطلب.",
-    "request_approval":"اطلب رمز موافقة إشرافي لاسترداد مؤهل.",
-    "issue_refund":"نفذ استردادًا تجريبيًا بعد التحقق والموافقة فقط.",
-    "ask_order_id":"اطلب رقم الطلب؛ يجيب محاكي العميل برد مقرر في السيناريو.",
-    "escalate":"حوّل الحالة إلى موظف بشري؛ إجراء آمن للحالات غير المحسومة.",
-    "send_response":"أرسل ردًا نهائيًا مع رمز دلالي ليُتحقق من صدقه واتساقه.",
-    "close_case":"أغلق الحالة؛ الإغلاق المبكر غير ناجح ويُنهي الحلقة.",
-}
+TOOL_DESCRIPTIONS = load_locale("ar")["tool_descriptions"]
 RESOLUTIONS = ("status", "refund", "declined", "escalated", "needs_info", "already_refunded", "other")
 ORDER_STATUSES = {"delayed":"متأخرة", "in_transit":"قيد التوصيل", "delivered":"تم التسليم"}
-TEXT_CHARS = frozenset(chr(i) for a,b in ((32,126),(0x0600,0x06FF),(0x0750,0x077F),(0x08A0,0x08FF),(0x2000,0x206F),(0x20A0,0x20CF)) for i in range(a,b+1))
+TEXT_CHARS = frozenset(chr(i) for a,b in ((32,126),(0x00A0,0x024F),(0x0600,0x06FF),(0x0750,0x077F),(0x08A0,0x08FF),(0x2000,0x206F),(0x20A0,0x20CF)) for i in range(a,b+1))
 
 
 def make_action(tool: str, *, order_id: str="", approval_id: str="", message: str="", resolution: str="other") -> dict:
@@ -70,14 +62,21 @@ def make_action(tool: str, *, order_id: str="", approval_id: str="", message: st
     return {"tool":TOOLS.index(tool),"order_id":order_id,"approval_id":approval_id,"message":message,"resolution":RESOLUTIONS.index(resolution)}
 
 
-class ArabicCustomerServiceEnv(gym.Env):
-    """Synthetic task environment; rule-based verifier, no external calls or real customer data."""
+class CustomerServiceEnv(gym.Env):
+    """Language-neutral synthetic customer-service environment.
+
+    Business state, tools, permissions, rewards, and event logs are shared
+    across locales. Locale packs provide customer-facing text and verification
+    terms; they do not change the underlying task semantics.
+    """
     metadata = {"render_modes":["ansi"],"render_fps":1}
 
-    def __init__(self, episode_step_budget: int=10, render_mode: str|None=None):
+    def __init__(self, episode_step_budget: int=10, render_mode: str|None=None, locale: str="ar"):
         super().__init__()
         if render_mode not in (None,"ansi"): raise ValueError("render_mode must be None or 'ansi'")
         if episode_step_budget < 1: raise ValueError("episode_step_budget must be at least 1")
+        self.locale = locale.lower()
+        self._locale_pack = load_locale(self.locale)
         self.render_mode=render_mode; self.max_episode_steps=episode_step_budget
         self.action_space=spaces.Dict({
             "tool":spaces.Discrete(len(TOOLS)),
@@ -109,7 +108,7 @@ class ArabicCustomerServiceEnv(gym.Env):
         order=self._order or {}
         return {"customer_message":self._customer_message,"last_tool_result":self._last_tool_result,
                 "last_reply":self._last_reply,"order_id":order.get("id",""),
-                "order_status":ORDER_STATUSES.get(order.get("status"),""),
+                "order_status":self._locale_pack["status_labels"].get(order.get("status"),""),
                 "policy_result":self._policy_result,"refund_state":self._refund_state,
                 "approval_id":self._approval_id,"steps_left":max(0,self.max_episode_steps-self._steps),
                 "tool_calls":self._steps,"escalated":int(self._escalated)}
@@ -120,15 +119,27 @@ class ArabicCustomerServiceEnv(gym.Env):
         if scenario_id is None: scenario_id=self.np_random.choice(SCENARIO_IDS)
         if scenario_id not in _SCENARIOS: raise ValueError(f"unknown scenario_id: {scenario_id}")
         self._scenario_id=str(scenario_id); self._scenario=dict(_SCENARIOS[scenario_id])
-        self._customer_message=self._scenario["message"]; self._last_tool_result=""; self._last_reply=""
+        self._customer_message=self._localized_customer_message(self._scenario)
+        self._last_tool_result=""; self._last_reply=""
         self._order=None; self._policy_result="unknown"; self._refund_state="unknown"
         self._approval_id=""; self._approval_used=False; self._asked_order=False
         self._customer_refused_id=False; self._escalated=False; self._steps=0
         self._failed_lookups=0; self._event_log=[]; self._safety_violations=0; self._done=False
-        info={"environment_id":"PolyGlotCustomerServiceAr-v1","language":"ar","available_tools":tuple(TOOLS),
-              "tool_descriptions":dict(TOOL_DESCRIPTIONS),"resolutions":tuple(RESOLUTIONS),
+        info={"environment_id":"PolyGlotCustomerService-v1","language":self._locale_pack["code"],
+              "locale":self._locale_pack["bcp47"],"available_tools":tuple(TOOLS),
+              "tool_descriptions":dict(self._locale_pack["tool_descriptions"]),"resolutions":tuple(RESOLUTIONS),
               "action_schema":"Dict(tool index, order_id, approval_id, message, resolution index)"}
         return self._observation(),copy.deepcopy(info)
+
+    def _localized_customer_message(self, scenario: dict) -> str:
+        """Render a locale-specific surface form for a language-neutral fixture."""
+        if self.locale == "ar":
+            return scenario["message"]
+        order = scenario.get("order") or {}
+        message_key = scenario.get("goal", "status")
+        if message_key not in self._locale_pack["customer_messages"]:
+            message_key = "status"
+        return self._locale_pack["customer_messages"][message_key].format(id=order.get("id", ""))
 
     def _event(self, tool, args, result, components):
         event={"step":self._steps,"tool":tool,"arguments":args,"result":result,
@@ -139,22 +150,23 @@ class ArabicCustomerServiceEnv(gym.Env):
     def _status_is_truthful(self, message: str) -> bool:
         if not self._order or self._order.get("id") not in message: return False
         status=self._order["status"]
-        required={"delayed":("متأخرة","متأخر","تأخر"),
-                  "in_transit":("قيد التوصيل","في الطريق"),
-                  "delivered":("تم التسليم","تم تسليم","وصل")}[status]
+        required=tuple(self._locale_pack["status_terms"][status])
         return any(term in message for term in required)
 
     def _verify_response(self, code: str, message: str) -> tuple[bool,str]:
         if len(message.strip())<8: return False,"الرد النهائي فارغ أو قصير جدًا."
         if code=="status" and self._scenario["goal"]=="status" and self._order and self._status_is_truthful(message):
             return True,"تم التحقق من رقم الطلب والحالة المنشورة."
-        if code=="refund" and self._scenario["goal"]=="refund" and self._refund_state=="issued" and self._order and self._order["id"] in message and ("استرداد" in message or "المبلغ" in message):
+        refund_terms=("استرداد","المبلغ") if self.locale == "ar" else (("remboursement","montant") if self.locale == "fr" else ("refund","amount"))
+        decline_terms=("لا يمكن","غير مؤهل","لا أستطيع") if self.locale == "ar" else (("impossible","inéligible","n'est pas éligible","ne peux") if self.locale == "fr" else ("cannot","ineligible","not eligible","can't"))
+        escalation_terms=("موظف","مختص","تصعيد") if self.locale == "ar" else (("agent","spécialiste","transfér") if self.locale == "fr" else ("agent","specialist","escalat"))
+        if code=="refund" and self._scenario["goal"]=="refund" and self._refund_state=="issued" and self._order and self._order["id"] in message and any(term in message.lower() for term in refund_terms):
             return True,"تم التحقق من الاسترداد المنفذ والرد المرتبط بالطلب."
-        if code=="declined" and self._scenario["goal"]=="decline" and self._policy_result=="ineligible" and self._order and self._order["id"] in message and any(x in message for x in ("لا يمكن","غير مؤهل","لا أستطيع")):
+        if code=="declined" and self._scenario["goal"]=="decline" and self._policy_result=="ineligible" and self._order and self._order["id"] in message and any(x in message.lower() for x in decline_terms):
             return True,"تم رفض الطلب وفق نتيجة السياسة المسجلة."
-        if code=="already_refunded" and self._scenario["goal"]=="already_refunded" and self._refund_state=="already_refunded" and self._order and self._order["id"] in message and ("استرداد" in message or "المبلغ" in message):
+        if code=="already_refunded" and self._scenario["goal"]=="already_refunded" and self._refund_state=="already_refunded" and self._order and self._order["id"] in message and any(term in message.lower() for term in refund_terms):
             return True,"تم توضيح أن الاسترداد السابق موجود دون إنشاء استرداد مكرر."
-        if code=="escalated" and self._scenario["goal"]=="handoff" and self._escalated and any(x in message for x in ("موظف","مختص","تصعيد")):
+        if code=="escalated" and self._scenario["goal"]=="handoff" and self._escalated and any(x in message.lower() for x in escalation_terms):
             return True,"تم التحقق من التصعيد قبل إبلاغ العميل."
         if code=="needs_info" and self._customer_refused_id and any(x in message for x in ("رقم الطلب","معلومات إضافية")):
             return True,"تم طلب المعلومات اللازمة دون الادعاء بتنفيذ الإجراء."
@@ -251,10 +263,21 @@ class ArabicCustomerServiceEnv(gym.Env):
         self._scenario=None
 
 
+class ArabicCustomerServiceEnv(CustomerServiceEnv):
+    """Backward-compatible Arabic entry point; use CustomerServiceEnv for new locales."""
+
+    def __init__(self, episode_step_budget: int=10, render_mode: str|None=None, locale: str="ar"):
+        super().__init__(episode_step_budget=episode_step_budget, render_mode=render_mode, locale=locale)
+
+
 def register() -> None:
-    env_id="PolyGlotCustomerServiceAr-v1"
-    if env_id not in gym.registry:
-        gym.register(id=env_id,entry_point="environments.customer_service_agent:ArabicCustomerServiceEnv")
+    registrations = {
+        "PolyGlotCustomerService-v1": "environments.customer_service_agent:CustomerServiceEnv",
+        "PolyGlotCustomerServiceAr-v1": "environments.customer_service_agent:ArabicCustomerServiceEnv",
+    }
+    for env_id, entry_point in registrations.items():
+        if env_id not in gym.registry:
+            gym.register(id=env_id,entry_point=entry_point)
 
 register()
-__all__=["ArabicCustomerServiceEnv","SCENARIO_IDS","TOOLS","TOOL_DESCRIPTIONS","RESOLUTIONS","make_action","register"]
+__all__=["CustomerServiceEnv","ArabicCustomerServiceEnv","SCENARIO_IDS","TOOLS","TOOL_DESCRIPTIONS","RESOLUTIONS","make_action","register","available_locales"]

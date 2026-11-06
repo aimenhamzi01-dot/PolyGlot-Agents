@@ -251,6 +251,8 @@ python scripts/import_oasst.py --all-languages --output-root datasets/curated --
 python scripts/language_report.py --input datasets/curated --output /tmp/language-report.json
 python scripts/scaffold_language.py --code sw --source-tag sw
 python scripts/auto_import.py --limit-per-language 100
+python -m scripts.validate_records --input examples/multilingual.jsonl
+python -m scripts.validate_benchmarks
 python -m unittest discover -s tests -v
 ```
 
@@ -264,6 +266,12 @@ python -m pytest -q
 ```
 
 The larger ingestion stack is optional; install it with `python -m pip install -e ".[pipeline]"` when using fastText or the Hugging Face dataset importers. Model-training dependencies remain separate and can be installed with `python -m pip install -e ".[training]"`. GitHub Actions runs the tests on Python 3.10, 3.11, and 3.12 and checks the repository's JSON/YAML files.
+
+`validate_records.py` checks the data contract before a JSONL file enters a pipeline:
+required source and license metadata, canonical language codes, provenance timestamps,
+bounded quality scores, review status, and content type. Add `--language <code>` to
+enforce one language per file. After an editable install, the equivalent entry point is
+`polyglot-validate-records`.
 
 `tests/test_benchmark_stress.py` adds offline load checks: it loads 10,000 benchmark cards, runs 1,000 deterministic customer-service episodes while checking success and safety, and verifies order-ID extraction from a customer message larger than 1 MB. The timing assertions are intentionally generous regression limits; these tests exercise the local rule-based baseline and do not call external model APIs.
 

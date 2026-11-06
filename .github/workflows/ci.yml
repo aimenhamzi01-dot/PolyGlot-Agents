@@ -59,5 +59,7 @@ jobs:
           PY
       - name: Validate benchmark task contracts
         run: python -m scripts.validate_benchmarks
+      - name: Validate bundled example records
+        run: python -m scripts.validate_records --input examples/multilingual.jsonl
       - name: Check Python bytecode compilation
         run: python -m compileall -q environments evaluation scripts pipelines tests

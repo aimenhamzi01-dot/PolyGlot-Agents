@@ -1,5 +1,11 @@
 # PolyGlot Agents
 
+<p align="center">
+  <img src="assets/polyglot-agents-mark.png" alt="PolyGlot Agents logo" width="180" />
+</p>
+
+<p align="center"><strong>PolyGlot Agents</strong> · Traceable multilingual agent infrastructure</p>
+
 [![CI](https://github.com/aimenhamzi01-dot/PolyGlot-Agents/actions/workflows/ci.yml/badge.svg)](https://github.com/aimenhamzi01-dot/PolyGlot-Agents/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg)](https://www.python.org/)

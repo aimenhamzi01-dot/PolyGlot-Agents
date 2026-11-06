@@ -5,6 +5,8 @@ review status and holdout rules declared in each release manifest.
 
 ## [Unreleased]
 
+- Added the PolyGlot Agents brand mark in standard and dark-background transparent PNG variants,
+  and embedded the primary mark in the README.
 - Rebuilt the README as a company-grade project entry point with status boundaries, quick start,
   data ingestion, evaluation, deployment, governance, security, contribution, and roadmap sections.
 - Updated README with the current 72-language import snapshot, reproducible quick-start commands,

@@ -69,5 +69,17 @@ jobs:
             --output /tmp/polyglot-baseline-report.json
           python -m evaluation.check_regression \
             --report /tmp/polyglot-baseline-report.json
+      - name: Run English and French development regressions
+        run: |
+          set -euo pipefail
+          for locale in en fr; do
+            python evaluation/run_benchmark.py \
+              --benchmark evaluation/benchmarks/${locale}_tasks.json \
+              --split development \
+              --locale "${locale}" \
+              --output "/tmp/polyglot-${locale}-development-report.json"
+            python -m evaluation.check_regression \
+              --report "/tmp/polyglot-${locale}-development-report.json"
+          done
       - name: Check Python bytecode compilation
         run: python -m compileall -q environments evaluation scripts pipelines tests

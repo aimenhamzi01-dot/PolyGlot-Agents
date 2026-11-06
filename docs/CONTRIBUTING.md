@@ -37,10 +37,12 @@ Use Python 3.10+, type hints where useful, clear CLI help, deterministic behavio
 
 ## Pull requests
 
-A pull request should explain the motivation, expected behavior, test command and output, data source/license changes, and language-specific validation. Run:
+A pull request should explain the motivation, expected behavior, test command and output, data source/license changes, and language-specific validation. Run the same checks used by CI:
 
 ```bash
-python -m unittest discover -s tests -v
+make install
+make test
+make check
 ```
 
 Keep changes focused. Include a changelog note for schema changes, and obtain native-speaker review for benchmark text where possible. By submitting code, you agree that your contribution is offered under Apache-2.0 unless the pull request states a compatible alternative accepted by maintainers. Dataset contributions remain under their declared upstream license.

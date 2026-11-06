@@ -1,6 +1,6 @@
 services:
   vllm:
-    image: vllm/vllm-openai:latest
+    image: "${VLLM_IMAGE:?Set VLLM_IMAGE to a reviewed immutable vLLM tag or digest}"
     command:
       - "${BASE_MODEL:?Set BASE_MODEL to the exact base model used for LoRA training}"
       - "--host"
@@ -22,6 +22,12 @@ services:
       - "${ADAPTER_HOST_PATH:-./outputs/polyglot-lora}:${LORA_ADAPTER_PATH:?Set LORA_ADAPTER_PATH}:ro"
     expose:
       - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     deploy:
       resources:
         reservations:
@@ -43,7 +49,7 @@ services:
       UPSTREAM_TIMEOUT_SECONDS: "${UPSTREAM_TIMEOUT_SECONDS:-120}"
     depends_on:
       vllm:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
     restart: unless-stopped

@@ -5,6 +5,9 @@ review status and holdout rules declared in each release manifest.
 
 ## [Unreleased]
 
+- Added a Makefile with one-command install, test, validation, and benchmark targets.
+- Hardened the production Compose file by requiring an explicitly reviewed vLLM image and
+  waiting for the upstream health check before starting the gateway.
 - Added auditable review queues with reproducible sampling and decision application.
 - Added rights lifecycle manifests and non-destructive quarantine tombstones.
 - Added validated environment configuration loaded from `configs/environment.yaml`.

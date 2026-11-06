@@ -94,7 +94,7 @@ licensed data
 
 11. **Secure production API.** Provide an OpenAI-compatible interface, streaming, authentication, quotas, rate limiting, tenant isolation, audit trace IDs, model rollback and private or on-premise deployment. Keep vLLM private behind a gateway. Do not expose arbitrary adapter loading or tool credentials to callers.
 
-12. **Multilingual red-team suite.** Test prompt injection, tool injection, data exfiltration, social engineering, impersonation, replayed approvals, reward exploitation, multilingual jailbreaks and language mixing intended to bypass filters. Measure whether safety holds under pressure, not only whether the model produces a fluent answer.
+12. **Multilingual red-team suite.** The repository now has deterministic Arabic, English, and French regressions for prompt injection, tool-argument injection, unsupported claims, fake/replayed approvals, and reward-sensitive refund actions. This is an environment safety suite, not proof that every external model resists prompt injection, data exfiltration, social engineering, impersonation, multilingual jailbreaks, or language mixing.
 
 13. **Contributor and reviewer ecosystem.** Create language maintainers, environment owners, data stewards, benchmark authors, legal reviewers and safety reviewers. Every contribution must pass rights, schema, privacy, language, quality and contamination checks. Reward high-quality review without weakening provenance requirements.
 
@@ -104,7 +104,7 @@ licensed data
 
 The repository already has approved-source importing with pinned revisions, provenance and deduplication; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable customer-service environment with Arabic, English, and French locale packs; locale-aware deterministic baselines; an independent policy engine; an OpenAI-compatible evaluation adapter; publishable Markdown/HTML reports; and a CI regression gate. The locale packs are synthetic development fixtures and are not yet native-speaker-validated public benchmarks. See [Locale architecture](docs/LOCALE_ARCHITECTURE.md).
 
-The highest-priority gaps are permissioned or partner data, native-speaker review for each locale, protected hidden test storage, dialect-specific task authoring, a review/annotation workflow, production regression data, comparisons against real models, and customer pilots.
+The highest-priority gaps are permissioned or partner data, native-speaker review for each locale, protected hidden test storage, dialect-specific task authoring, production regression data, comparisons against real models, and customer pilots. The current red-team suite still needs broader adversarial authoring and reviewed language coverage before it can support external safety claims.
 
 ### Future delivery roadmap
 

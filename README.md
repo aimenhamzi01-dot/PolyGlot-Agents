@@ -27,6 +27,78 @@ We intend to work toward that goal through six evidence-based capabilities:
 
 The first practical wedge is a narrow, measurable use case—such as Arabic customer support and its dialects—with permissioned data and an independently reviewed benchmark. Expand to other languages and tasks only as the project can support them with comparable provenance and validation. The current OASST1 samples and scaffolded benchmark cards are groundwork; they are not exclusive assets, customer validation, or completed multilingual benchmarks.
 
+## Developer reference: the strategic capability map
+
+PolyGlot Agents should grow from a multilingual data repository into a **reliability platform for multilingual agents**. The goal is not to own a slightly better language model. The goal is to prove, with licensed data and reproducible evidence, that an agent can understand a request, use tools, make a safe decision, complete a real task, and recover from failures across languages and dialects.
+
+The target closed loop is:
+
+```text
+licensed data
+  -> privacy, rights and quality screening
+  -> human language and safety review
+  -> executable tasks and hidden evaluation split
+  -> agent/tool interaction with verifiable state
+  -> safety and business metrics
+  -> training or policy improvement
+  -> production regression cases
+```
+
+### Capabilities the project should build
+
+1. **Rights-cleared, defensible data.** Public datasets are a starting point, not the long-term moat. Build permissioned datasets from real or carefully simulated workflows. Every record should retain source, revision, license, consent basis, retrieval date, allowed use, attribution requirements and deletion status. Track derived files and model releases so a source can be quarantined or removed consistently.
+
+2. **Executable environments, not text-only tests.** Each environment should contain hidden state, explicit tools, permissions, transient and permanent failures, timeouts, idempotency rules, event logs, verifiable rewards and protection against reward hacking. A successful response is not enough; the agent must produce the correct outcome without an unauthorized action.
+
+3. **Deep Arabic and dialect coverage.** Treat `ar-MSA`, Egyptian, Gulf, Levantine, Maghrebi and code-switched Arabic as distinct evaluation dimensions when the task requires it. Preserve script, region, dialect, spelling variation, Arabic and Latin digits, speech-transcription noise and politeness conventions in metadata. Do not claim multilingual coverage from empty language folders.
+
+4. **Independent, versioned and hidden benchmarks.** Maintain public development tasks and a protected test split that never enters training. Version every benchmark, record native-speaker review and inter-rater agreement, and prevent post-hoc changes to published scores. Report performance by language, dialect, scenario and failure type rather than one aggregate score.
+
+5. **Native-speaker annotation operations.** Add review queues per language and dialect for language quality, factuality, task correctness, tool arguments, safety, cultural fit and privacy risk. Record reviewer identity in protected systems, review date, rubric version, confidence and disagreement. Require a second review on a measured sample.
+
+6. **Multi-dimensional quality and risk scoring.** Replace a single unexplained quality number with separate signals such as language quality, instruction following, factuality, safety, tool correctness, cultural fit, privacy risk and training value. Calibrate thresholds per language and detect contamination, semantic duplicates, machine translation, synthetic data, contradictions and unsupported claims.
+
+7. **Policy and permission enforcement outside the model.** Use the following boundary for every sensitive workflow:
+
+   ```text
+   LLM proposes an action
+       -> policy engine checks state and permissions
+       -> tool gateway executes or rejects
+       -> audit log records the decision
+   ```
+
+   The model must never directly issue refunds, modify orders, delete records or access customer credentials. The policy layer must enforce identity, authorization, idempotency, approval freshness and truthfulness of the final response.
+
+8. **Production regression loop.** Capture privacy-screened failure patterns from deployments: unsafe attempts, tool errors, parsing failures, latency, cost, timeouts, escalation quality and language-specific failures. Convert each validated failure into a regression task, review it, evaluate it, and only then use it for policy or model improvement.
+
+9. **Model and provider comparison.** Run the same seed, tasks and tool contracts against the rule-based baseline, base model, LoRA model and external APIs. Report task success, safe completion, unsafe-action rate, unsupported claims, tool selection and argument accuracy, recovery rate, latency and cost per successful task.
+
+10. **Reproducible training and model releases.** Every adapter or merged model must record the exact base-model revision, data manifest, source licenses, filtering version, hyperparameters, adapter hash, benchmark results and known limitations. Never train on the hidden test split. Keep unmerged LoRA adapters for rollback and reconstruction.
+
+11. **Secure production API.** Provide an OpenAI-compatible interface, streaming, authentication, quotas, rate limiting, tenant isolation, audit trace IDs, model rollback and private or on-premise deployment. Keep vLLM private behind a gateway. Do not expose arbitrary adapter loading or tool credentials to callers.
+
+12. **Multilingual red-team suite.** Test prompt injection, tool injection, data exfiltration, social engineering, impersonation, replayed approvals, reward exploitation, multilingual jailbreaks and language mixing intended to bypass filters. Measure whether safety holds under pressure, not only whether the model produces a fluent answer.
+
+13. **Contributor and reviewer ecosystem.** Create language maintainers, environment owners, data stewards, benchmark authors, legal reviewers and safety reviewers. Every contribution must pass rights, schema, privacy, language, quality and contamination checks. Reward high-quality review without weakening provenance requirements.
+
+14. **Business-impact evidence.** Run consented pilots and measure first-contact resolution, escalation, handling time, unsafe action prevention, language-specific quality and cost per successful task. Product claims must be backed by before/after methodology and reproducible evaluation artifacts.
+
+### Current status and gaps
+
+The repository already has approved-source importing with pinned revisions, provenance and deduplication; experimental LoRA fine-tuning; vLLM/FastAPI deployment files; a verifiable Arabic customer-service environment; a deterministic baseline; and an OpenAI-compatible evaluation adapter. The current development baseline passes seven Arabic tasks safely, but this is a synthetic development fixture and not yet a native-speaker-validated public benchmark.
+
+The highest-priority gaps are permissioned or partner data, native-speaker review, a hidden test split, multiple Arabic dialects, an independent policy engine, a review/annotation workflow, production regression data, cost and latency reporting, comparisons against real models, and customer pilots.
+
+### Delivery roadmap
+
+**First 30 days:** expand the Arabic environment to 30–50 tasks; add prompt-injection and tool-failure cases; define a benchmark schema and train/dev/test split; separate the policy verifier; run the real API adapter; publish JSON and HTML reports.
+
+**By 60 days:** add three Arabic dialect profiles; onboard native-speaker reviewers; implement annotation queues; add the multilingual red-team suite; record cost and latency; and block safety regressions in CI.
+
+**By 90 days:** secure the first data or pilot partner; collect rights-cleared workflow traces; connect production failures to benchmark tasks; publish a dashboard and a model-comparison report.
+
+Only after these steps should the project expand broadly into additional languages, commerce, research, coding and enterprise workflows. Depth, evidence and rights are more valuable than a large directory of unvalidated languages.
+
 ## Repository layout
 
 ```text

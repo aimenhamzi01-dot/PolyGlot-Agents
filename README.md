@@ -133,6 +133,13 @@ The validator checks required metadata and task fields, unique task IDs, declare
 
 The runner records benchmark, environment, and evaluator hashes; review status; expected-versus-actual outcome; task success; safety violations; tool calls; truncation; reward; and event log. Future hidden cases must remain outside the public repository in access-controlled maintainer storage and be supplied explicitly with `--protected-benchmark`; use `--split hidden` or `--split all` only with that file. `.gitignore` is a local safeguard, not access control. Native-speaker review and genuinely protected test storage remain prerequisites for official scores.
 
+Each report now also contains a non-exclusive failure taxonomy in `aggregate.failure_reasons`
+and breakdowns under `aggregate.failure_breakdown.by_scenario` and
+`aggregate.failure_breakdown.by_locale`. The labels distinguish `agent_error`,
+`unsafe_action`, `unsupported_claim`, `step_budget_exhausted`, `outcome_mismatch`,
+and a residual `task_failure`. A task can receive multiple labels, so these counts are
+diagnostic evidence rather than a competing success-rate denominator.
+
 Only after these steps should the project expand broadly into additional languages, commerce, research, coding and enterprise workflows. Depth, evidence and rights are more valuable than a large directory of unvalidated languages.
 
 ## Global coverage roadmap

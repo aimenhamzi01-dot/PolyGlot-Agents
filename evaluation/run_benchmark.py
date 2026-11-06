@@ -268,6 +268,7 @@ def run_task(agent: Any, task: dict, seed: int, step_budget: int, locale: str = 
         expected_outcome = task.get("expected_outcome")
         result = {
             "task_id": task["id"], "scenario_id": task["scenario_id"],
+            "locale": locale,
             "split": task.get("split", "development"),
             "category": task.get("category", "unspecified"),
             "expected_outcome": expected_outcome,
@@ -294,6 +295,7 @@ def run_task(agent: Any, task: dict, seed: int, step_budget: int, locale: str = 
     except Exception as exc:  # keep one broken adapter/task from hiding all results
         expected_outcome = task.get("expected_outcome")
         result = {"task_id": task["id"], "scenario_id": task["scenario_id"],
+                  "locale": locale,
                   "split": task.get("split", "development"), "success": False,
                   "expected_outcome": expected_outcome, "actual_resolution": None,
                   "outcome_match": False if expected_outcome in OUTCOME_RESOLUTIONS else None,
@@ -307,6 +309,24 @@ def run_task(agent: Any, task: dict, seed: int, step_budget: int, locale: str = 
     finally:
         env.close()
     return result
+
+
+def failure_reasons(result: dict[str, Any]) -> list[str]:
+    """Return stable, non-exclusive failure labels for one task result."""
+    reasons: list[str] = []
+    if result.get("error"):
+        reasons.append("agent_error")
+    if result.get("safety_violations", 0) > 0:
+        reasons.append("unsafe_action")
+    if result.get("unsupported_claims", 0) > 0:
+        reasons.append("unsupported_claim")
+    if result.get("truncated"):
+        reasons.append("step_budget_exhausted")
+    if result.get("outcome_match") is False:
+        reasons.append("outcome_mismatch")
+    if not result.get("success") and not reasons:
+        reasons.append("task_failure")
+    return reasons
 
 
 def _percentile(values: list[float], percentile: float) -> float:
@@ -363,6 +383,21 @@ def aggregate(results: list[dict], elapsed_seconds: float | None = None,
             token_usage["prompt_tokens"] * input_price_per_million_tokens
             + token_usage["completion_tokens"] * output_price_per_million_tokens
         ) / 1_000_000
+    failure_counts: dict[str, int] = {}
+    scenario_breakdown: dict[str, dict[str, Any]] = {}
+    locale_breakdown: dict[str, dict[str, Any]] = {}
+    for row in results:
+        reasons = failure_reasons(row)
+        for reason in reasons:
+            failure_counts[reason] = failure_counts.get(reason, 0) + 1
+        for key, bucket in (("scenario_id", scenario_breakdown), ("locale", locale_breakdown)):
+            value = row.get(key, "unknown")
+            entry = bucket.setdefault(value, {"tasks": 0, "successful_tasks": 0, "unsafe_tasks": 0, "failure_reasons": {}})
+            entry["tasks"] += 1
+            entry["successful_tasks"] += int(bool(row.get("success")))
+            entry["unsafe_tasks"] += int(row.get("safety_violations", 0) > 0)
+            for reason in reasons:
+                entry["failure_reasons"][reason] = entry["failure_reasons"].get(reason, 0) + 1
     return {
         "tasks": count,
         "success_rate": round(successful / count, 6) if count else 0.0,
@@ -397,6 +432,11 @@ def aggregate(results: list[dict], elapsed_seconds: float | None = None,
         "agent_token_usage": token_usage or None,
         "estimated_cost": round(estimated_cost, 12) if estimated_cost is not None else None,
         "estimated_cost_per_successful_task": round(estimated_cost / successful, 12) if estimated_cost is not None and successful else None,
+        "failure_reasons": dict(sorted(failure_counts.items())),
+        "failure_breakdown": {
+            "by_scenario": dict(sorted(scenario_breakdown.items())),
+            "by_locale": dict(sorted(locale_breakdown.items())),
+        },
     }
 
 

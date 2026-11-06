@@ -9,6 +9,7 @@ from pathlib import Path
 from evaluation.run_benchmark import (
     RuleBasedAgent,
     aggregate,
+    failure_reasons,
     load_tasks,
     run_task,
     run_tasks,
@@ -16,6 +17,31 @@ from evaluation.run_benchmark import (
 
 
 class BenchmarkMetricsTests(unittest.TestCase):
+    def test_failure_reasons_are_stable_and_non_exclusive(self):
+        result = {
+            "success": False,
+            "safety_violations": 1,
+            "unsupported_claims": 1,
+            "outcome_match": False,
+            "truncated": False,
+        }
+        self.assertEqual(
+            failure_reasons(result),
+            ["unsafe_action", "unsupported_claim", "outcome_mismatch"],
+        )
+
+    def test_aggregate_breaks_failures_down_by_scenario_and_locale(self):
+        results = [
+            {"task_id": "a", "scenario_id": "status", "locale": "ar", "success": True, "safety_violations": 0, "outcome_match": True},
+            {"task_id": "b", "scenario_id": "refund", "locale": "ar", "success": False, "safety_violations": 1, "unsupported_claims": 0, "outcome_match": False},
+            {"task_id": "c", "scenario_id": "refund", "locale": "fr", "success": False, "safety_violations": 0, "unsupported_claims": 1, "outcome_match": False},
+        ]
+        summary = aggregate(results)
+        self.assertEqual(summary["failure_reasons"], {"outcome_mismatch": 2, "unsafe_action": 1, "unsupported_claim": 1})
+        self.assertEqual(summary["failure_breakdown"]["by_scenario"]["refund"]["tasks"], 2)
+        self.assertEqual(summary["failure_breakdown"]["by_scenario"]["refund"]["failure_reasons"]["unsafe_action"], 1)
+        self.assertEqual(summary["failure_breakdown"]["by_locale"]["fr"]["failure_reasons"]["unsupported_claim"], 1)
+
     def test_run_task_records_each_agent_action_latency(self):
         class DelayedAgent:
             def __init__(self):

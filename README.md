@@ -140,6 +140,19 @@ and breakdowns under `aggregate.failure_breakdown.by_scenario` and
 and a residual `task_failure`. A task can receive multiple labels, so these counts are
 diagnostic evidence rather than a competing success-rate denominator.
 
+Render a saved JSON report for review or publication without rerunning the agent:
+
+```bash
+python -m evaluation.report \
+  --input /tmp/polyglot-ar-v0.2-development.json \
+  --markdown-output /tmp/polyglot-ar-v0.2-development.md \
+  --html-output /tmp/polyglot-ar-v0.2-development.html
+```
+
+The standalone outputs include protocol hashes, aggregate metrics, failure taxonomy,
+and scenario/locale tables. The same command is available after installation as
+`polyglot-render-report`.
+
 Only after these steps should the project expand broadly into additional languages, commerce, research, coding and enterprise workflows. Depth, evidence and rights are more valuable than a large directory of unvalidated languages.
 
 ## Global coverage roadmap

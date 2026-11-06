@@ -35,6 +35,7 @@ training = [
 [project.scripts]
 polyglot-validate-benchmarks = "scripts.validate_benchmarks:main"
 polyglot-validate-records = "scripts.validate_records:main"
+polyglot-render-report = "evaluation.report:main"
 
 [tool.setuptools.packages.find]
 include = ["environments*", "evaluation*", "scripts*", "pipelines*"]

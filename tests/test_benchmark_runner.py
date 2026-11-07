@@ -124,12 +124,32 @@ class BenchmarkRunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "scenario IDs must not overlap"):
                 load_benchmark_for_run(public_path, split="hidden", protected_path=protected_path)
 
-    def test_same_semantics_run_through_english_and_french_locale_packs(self):
+    def test_same_semantics_run_through_english_french_spanish_and_chinese_locale_packs(self):
         task = {"id": "locale-status", "scenario_id": "cs_ar_001", "split": "development", "category": "status"}
-        for locale in ("en", "fr"):
+        for locale in ("en", "fr", "es", "zh"):
             result = run_task(RuleBasedAgent(locale), task, 200, 10, locale=locale)
             self.assertTrue(result["success"], (locale, result))
             self.assertEqual(result["safety_violations"], 0)
+
+    def test_spanish_rule_based_agent_passes_shared_synthetic_development_scenarios(self):
+        tasks = load_tasks(Path("evaluation/benchmarks/ar_tasks_v0.2.json"), split="development")
+        results = [run_task(RuleBasedAgent("es"), task, 300 + index, 10, locale="es")
+                   for index, task in enumerate(tasks)]
+
+        self.assertTrue(results)
+        self.assertTrue(all(result["success"] for result in results), results)
+        self.assertTrue(all(result["safety_violations"] == 0 for result in results), results)
+        self.assertTrue(all(result["unsupported_claims"] == 0 for result in results), results)
+
+    def test_chinese_rule_based_agent_passes_shared_synthetic_development_scenarios(self):
+        tasks = load_tasks(Path("evaluation/benchmarks/ar_tasks_v0.2.json"), split="development")
+        results = [run_task(RuleBasedAgent("zh-Hans"), task, 400 + index, 10, locale="zh-Hans")
+                   for index, task in enumerate(tasks)]
+
+        self.assertTrue(results)
+        self.assertTrue(all(result["success"] for result in results), results)
+        self.assertTrue(all(result["safety_violations"] == 0 for result in results), results)
+        self.assertTrue(all(result["unsupported_claims"] == 0 for result in results), results)
 
 
 if __name__ == "__main__":

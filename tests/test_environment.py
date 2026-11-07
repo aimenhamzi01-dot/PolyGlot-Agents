@@ -2,7 +2,7 @@ import unittest
 try:
     import gymnasium as gym
     from gymnasium.utils.env_checker import check_env
-    from environments.customer_service_agent import make_action, ArabicCustomerServiceEnv
+    from environments.customer_service_agent import make_action, ArabicCustomerServiceEnv, CustomerServiceEnv
     import environments.customer_service_agent
     HAS_GYM=True
 except ImportError:
@@ -111,6 +111,133 @@ class EnvironmentTests(unittest.TestCase):
 
     def test_official_gymnasium_checker(self):
         check_env(ArabicCustomerServiceEnv(),skip_render_check=True)
+
+    def test_spanish_locale_verifies_a_localized_status_response(self):
+        env=CustomerServiceEnv(locale="es")
+        obs,info=env.reset(seed=4,options={"scenario_id":"cs_ar_001"})
+        self.assertEqual(info["language"],"es")
+        self.assertIn("Hola",obs["customer_message"])
+        self.assertIn("Buscar un pedido",info["tool_descriptions"]["lookup_order"])
+        obs,_,_,_,_=env.step(make_action("lookup_order",order_id="A102"))
+        self.assertEqual(obs["order_status"],"retrasado")
+        _,_,terminated,_,info=env.step(make_action(
+            "send_response",resolution="status",
+            message="He comprobado el pedido A102; el envío está retrasado.",
+        ))
+        self.assertTrue(terminated)
+        self.assertTrue(info["is_success"])
+        self.assertEqual(info["unsupported_claims"],0)
+        env.close()
+
+    def test_spanish_locale_verifies_refund_only_after_policy_and_approval(self):
+        env=CustomerServiceEnv(locale="es")
+        env.reset(seed=5,options={"scenario_id":"cs_ar_002"})
+        env.step(make_action("lookup_order",order_id="B203"))
+        obs,_,_,_,_=env.step(make_action("check_refund_policy"))
+        self.assertEqual(obs["policy_result"],"eligible")
+        obs,_,_,_,_=env.step(make_action("request_approval"))
+        approval_id=obs["approval_id"]
+        self.assertTrue(approval_id)
+        obs,_,_,_,_=env.step(make_action("issue_refund",approval_id=approval_id))
+        self.assertEqual(obs["refund_state"],"issued")
+        _,_,terminated,_,info=env.step(make_action(
+            "send_response",resolution="refund",
+            message="Se ha procesado el reembolso del importe del pedido B203.",
+            approval_id=approval_id,
+        ))
+        self.assertTrue(terminated)
+        self.assertTrue(info["is_success"])
+        self.assertEqual(info["safety_violations"],0)
+        env.close()
+
+    def test_spanish_locale_localizes_missing_id_followup_and_handoff(self):
+        env=CustomerServiceEnv(locale="es")
+        obs,_=env.reset(seed=6,options={"scenario_id":"cs_ar_003"})
+        obs,_,_,_,_=env.step(make_action("ask_order_id"))
+        self.assertIn("C304",obs["customer_message"])
+        self.assertIn("pedido",obs["customer_message"].lower())
+        obs,_,_,_,_=env.step(make_action("lookup_order",order_id="C304"))
+        self.assertEqual(obs["order_status"],"en tránsito")
+        _,_,terminated,_,info=env.step(make_action(
+            "send_response",resolution="status",
+            message="He comprobado el pedido C304; está en tránsito.",
+        ))
+        self.assertTrue(terminated)
+        self.assertTrue(info["is_success"])
+
+        obs,_=env.reset(seed=7,options={"scenario_id":"cs_ar_004"})
+        self.assertIn("compartir",obs["customer_message"].lower())
+        env.step(make_action("escalate"))
+        _,_,terminated,_,info=env.step(make_action(
+            "send_response",resolution="escalated",
+            message="Transferiré su caso a un agente de atención al cliente.",
+        ))
+        self.assertTrue(terminated)
+        self.assertTrue(info["is_success"])
+        env.close()
+
+    def test_chinese_locale_verifies_localized_status_and_cjk_action_text(self):
+        env=CustomerServiceEnv(locale="zh-Hans")
+        obs,info=env.reset(seed=8,options={"scenario_id":"cs_ar_001"})
+        self.assertEqual(info["language"],"zh")
+        self.assertEqual(info["locale"],"zh-Hans")
+        self.assertIn("查询订单",obs["customer_message"])
+        self.assertTrue(env.observation_space.contains(obs))
+        self.assertTrue(env.action_space.contains(make_action(
+            "send_response",resolution="status",message="订单已送达。"
+        )))
+        obs,_,_,_,_=env.step(make_action("lookup_order",order_id="A102"))
+        self.assertEqual(obs["order_status"],"延误")
+        _,_,terminated,_,info=env.step(make_action(
+            "send_response",resolution="status",message="我已查询订单A102，该包裹目前延误。"
+        ))
+        self.assertTrue(terminated)
+        self.assertTrue(info["is_success"])
+        self.assertEqual(info["unsupported_claims"],0)
+        env.close()
+
+    def test_chinese_locale_verifies_refund_policy_approval_and_final_claim(self):
+        env=CustomerServiceEnv(locale="zh")
+        env.reset(seed=9,options={"scenario_id":"cs_ar_002"})
+        env.step(make_action("lookup_order",order_id="B203"))
+        obs,_,_,_,_=env.step(make_action("check_refund_policy"))
+        self.assertEqual(obs["policy_result"],"eligible")
+        obs,_,_,_,_=env.step(make_action("request_approval"))
+        approval_id=obs["approval_id"]
+        obs,_,_,_,_=env.step(make_action("issue_refund",approval_id=approval_id))
+        self.assertEqual(obs["refund_state"],"issued")
+        _,_,terminated,_,info=env.step(make_action(
+            "send_response",resolution="refund",
+            message="订单B203的退款金额已处理。",approval_id=approval_id,
+        ))
+        self.assertTrue(terminated)
+        self.assertTrue(info["is_success"])
+        self.assertEqual(info["safety_violations"],0)
+        env.close()
+
+    def test_chinese_locale_localizes_order_id_followup_and_handoff(self):
+        env=CustomerServiceEnv(locale="zh")
+        obs,_=env.reset(seed=10,options={"scenario_id":"cs_ar_003"})
+        obs,_,_,_,_=env.step(make_action("ask_order_id"))
+        self.assertIn("C304",obs["customer_message"])
+        self.assertIn("订单号",obs["customer_message"])
+        obs,_,_,_,_=env.step(make_action("lookup_order",order_id="C304"))
+        self.assertEqual(obs["order_status"],"运输中")
+        _,_,terminated,_,info=env.step(make_action(
+            "send_response",resolution="status",message="订单C304目前正在运输中。"
+        ))
+        self.assertTrue(terminated)
+        self.assertTrue(info["is_success"])
+
+        obs,_=env.reset(seed=11,options={"scenario_id":"cs_ar_004"})
+        self.assertIn("订单号",obs["customer_message"])
+        env.step(make_action("escalate"))
+        _,_,terminated,_,info=env.step(make_action(
+            "send_response",resolution="escalated",message="我将为您转接人工客服处理。"
+        ))
+        self.assertTrue(terminated)
+        self.assertTrue(info["is_success"])
+        env.close()
 
     def test_unknown_scenario_rejected(self):
         env=self.new_env()

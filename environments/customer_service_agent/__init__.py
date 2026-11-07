@@ -54,8 +54,37 @@ SCENARIO_IDS = tuple(_SCENARIOS)
 TOOLS = ("lookup_order", "check_refund_policy", "request_approval", "issue_refund", "ask_order_id", "escalate", "send_response", "close_case")
 TOOL_DESCRIPTIONS = load_locale("ar")["tool_descriptions"]
 RESOLUTIONS = ("status", "refund", "declined", "escalated", "needs_info", "already_refunded", "other")
+REFUND_EVIDENCE = {"ar": ("استرداد", "المبلغ"), "en": ("refund", "amount"), "fr": ("remboursement", "montant"), "es": ("reembolso", "importe"), "zh": ("退款", "金额")}
+DECLINE_EVIDENCE = {
+    "ar": ("لا يمكن", "غير مؤهل", "لا أستطيع"),
+    "en": ("cannot", "ineligible", "not eligible", "can't"),
+    "fr": ("impossible", "inéligible", "n'est pas éligible", "ne peux"),
+    "es": ("no es elegible", "no elegible", "fuera del plazo", "no se puede"),
+    "zh": ("不符合退款条件", "超过期限", "无法退款"),
+}
+ESCALATION_EVIDENCE = {
+    "ar": ("موظف", "مختص", "تصعيد"),
+    "en": ("agent", "specialist", "escalat"),
+    "fr": ("agent", "spécialiste", "transfér"),
+    "es": ("agente", "representante", "atención al cliente"),
+    "zh": ("人工客服", "客服人员", "转接客服"),
+}
 ORDER_STATUSES = {"delayed":"متأخرة", "in_transit":"قيد التوصيل", "delivered":"تم التسليم"}
 TEXT_CHARS = frozenset(chr(i) for a,b in ((32,126),(0x00A0,0x024F),(0x0600,0x06FF),(0x0750,0x077F),(0x08A0,0x08FF),(0x2000,0x206F),(0x20A0,0x20CF)) for i in range(a,b+1))
+_CJK_RANGES = ((0x3000,0x303F),(0x3400,0x4DBF),(0x4E00,0x9FFF),(0xF900,0xFAFF),(0xFF00,0xFFEF))
+
+
+class MultilingualText(spaces.Text):
+    """Text space that accepts CJK characters without materializing a huge charset."""
+
+    def contains(self, value):
+        if not isinstance(value, str) or not self.min_length <= len(value) <= self.max_length:
+            return False
+        return all(
+            character in self._char_set
+            or any(start <= ord(character) <= end for start, end in _CJK_RANGES)
+            for character in value
+        )
 
 
 def make_action(tool: str, *, order_id: str="", approval_id: str="", message: str="", resolution: str="other") -> dict:
@@ -80,25 +109,25 @@ class CustomerServiceEnv(gym.Env):
         self._config=load_environment_config(config_path)
         if episode_step_budget is None: episode_step_budget=self._config.max_episode_steps
         if episode_step_budget < 1: raise ValueError("episode_step_budget must be at least 1")
-        self.locale = locale.lower()
+        self.locale = locale.lower().split("-")[0]
         self._locale_pack = load_locale(self.locale)
         self._policy_engine = CustomerServicePolicy()
         self.render_mode=render_mode; self.max_episode_steps=episode_step_budget
         self.action_space=spaces.Dict({
             "tool":spaces.Discrete(len(TOOLS)),
-            "order_id":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
-            "approval_id":spaces.Text(max_length=64,min_length=0,charset=TEXT_CHARS),
-            "message":spaces.Text(max_length=500,min_length=0,charset=TEXT_CHARS),
+            "order_id":MultilingualText(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "approval_id":MultilingualText(max_length=64,min_length=0,charset=TEXT_CHARS),
+            "message":MultilingualText(max_length=500,min_length=0,charset=TEXT_CHARS),
             "resolution":spaces.Discrete(len(RESOLUTIONS)),
         })
-        txt=spaces.Text(max_length=500,min_length=0,charset=TEXT_CHARS)
+        txt=MultilingualText(max_length=500,min_length=0,charset=TEXT_CHARS)
         self.observation_space=spaces.Dict({
             "customer_message":txt,"last_tool_result":txt,"last_reply":txt,
-            "order_id":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
-            "order_status":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
-            "policy_result":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
-            "refund_state":spaces.Text(max_length=32,min_length=0,charset=TEXT_CHARS),
-            "approval_id":spaces.Text(max_length=64,min_length=0,charset=TEXT_CHARS),
+            "order_id":MultilingualText(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "order_status":MultilingualText(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "policy_result":MultilingualText(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "refund_state":MultilingualText(max_length=32,min_length=0,charset=TEXT_CHARS),
+            "approval_id":MultilingualText(max_length=64,min_length=0,charset=TEXT_CHARS),
             "steps_left":spaces.Discrete(self.max_episode_steps+1),
             "tool_calls":spaces.Discrete(self.max_episode_steps+1),
             "escalated":spaces.Discrete(2),
@@ -148,6 +177,16 @@ class CustomerServiceEnv(gym.Env):
             message_key = "status"
         return self._locale_pack["customer_messages"][message_key].format(id=order.get("id", ""))
 
+    def _localized_followup(self, scenario: dict) -> str:
+        """Render a locale-specific scripted answer to a request for the order ID."""
+        followup = scenario.get("followup", "")
+        messages = self._locale_pack["customer_messages"]
+        if not followup or self.locale == "ar":
+            return followup
+        key = "refusal_followup" if scenario.get("goal") == "handoff" else "order_id_followup"
+        template = messages.get(key, followup)
+        return template.format(id=(scenario.get("order") or {}).get("id", ""))
+
     def _event(self, tool, args, result, components, unsupported_claim=False,
                transient_failure=False, recovered_from_transient_failure=False):
         event={"step":self._steps,"tool":tool,"arguments":args,"result":result,
@@ -171,9 +210,9 @@ class CustomerServiceEnv(gym.Env):
         lowered=message.lower()
         order_id=self._order.get("id") if self._order else None
         mentions_order=bool(order_id and order_id in message)
-        refund_terms=("استرداد","المبلغ") if self.locale == "ar" else (("remboursement","montant") if self.locale == "fr" else ("refund","amount"))
-        decline_terms=("لا يمكن","غير مؤهل","لا أستطيع") if self.locale == "ar" else (("impossible","inéligible","n'est pas éligible","ne peux") if self.locale == "fr" else ("cannot","ineligible","not eligible","can't"))
-        escalation_terms=("موظف","مختص","تصعيد") if self.locale == "ar" else (("agent","spécialiste","transfér") if self.locale == "fr" else ("agent","specialist","escalat"))
+        refund_terms=REFUND_EVIDENCE[self.locale]
+        decline_terms=DECLINE_EVIDENCE[self.locale]
+        escalation_terms=ESCALATION_EVIDENCE[self.locale]
         if code=="status": return self._status_is_truthful(message)
         if code=="refund": return self._refund_state=="issued" and mentions_order and any(term in lowered for term in refund_terms)
         if code=="declined": return self._policy_result=="ineligible" and mentions_order and any(term in lowered for term in decline_terms)
@@ -185,9 +224,9 @@ class CustomerServiceEnv(gym.Env):
         if len(message.strip())<8: return False,"الرد النهائي فارغ أو قصير جدًا."
         if code=="status" and self._scenario["goal"]=="status" and self._order and self._status_is_truthful(message):
             return True,"تم التحقق من رقم الطلب والحالة المنشورة."
-        refund_terms=("استرداد","المبلغ") if self.locale == "ar" else (("remboursement","montant") if self.locale == "fr" else ("refund","amount"))
-        decline_terms=("لا يمكن","غير مؤهل","لا أستطيع") if self.locale == "ar" else (("impossible","inéligible","n'est pas éligible","ne peux") if self.locale == "fr" else ("cannot","ineligible","not eligible","can't"))
-        escalation_terms=("موظف","مختص","تصعيد") if self.locale == "ar" else (("agent","spécialiste","transfér") if self.locale == "fr" else ("agent","specialist","escalat"))
+        refund_terms=REFUND_EVIDENCE[self.locale]
+        decline_terms=DECLINE_EVIDENCE[self.locale]
+        escalation_terms=ESCALATION_EVIDENCE[self.locale]
         if code=="refund" and self._scenario["goal"]=="refund" and self._refund_state=="issued" and self._order and self._order["id"] in message and any(term in message.lower() for term in refund_terms):
             return True,"تم التحقق من الاسترداد المنفذ والرد المرتبط بالطلب."
         if code=="declined" and self._scenario["goal"]=="decline" and self._policy_result=="ineligible" and self._order and self._order["id"] in message and any(x in message.lower() for x in decline_terms):
@@ -196,7 +235,8 @@ class CustomerServiceEnv(gym.Env):
             return True,"تم توضيح أن الاسترداد السابق موجود دون إنشاء استرداد مكرر."
         if code=="escalated" and self._scenario["goal"]=="handoff" and self._escalated and any(x in message.lower() for x in escalation_terms):
             return True,"تم التحقق من التصعيد قبل إبلاغ العميل."
-        if code=="needs_info" and self._customer_refused_id and any(x in message for x in ("رقم الطلب","معلومات إضافية")):
+        info_terms = {"ar": ("رقم الطلب", "معلومات إضافية"), "en": ("order number", "more information"), "fr": ("numéro de commande", "informations supplémentaires"), "es": ("número del pedido", "más información"), "zh": ("订单号", "更多信息")}[self.locale]
+        if code=="needs_info" and self._customer_refused_id and any(x in message.lower() for x in info_terms):
             return True,"تم طلب المعلومات اللازمة دون الادعاء بتنفيذ الإجراء."
         return False,"لم يطابق الرد النهائي الحالة المحققة أو لم تتوفر أدلة كافية."
 
@@ -230,9 +270,16 @@ class CustomerServiceEnv(gym.Env):
             if self._asked_order:
                 self._last_tool_result="سبق طلب رقم الطلب؛ لا تكرر السؤال بلا داعٍ."; progress=-0.05
             else:
-                self._asked_order=True; followup=self._scenario.get("followup","")
+                self._asked_order=True; followup=self._localized_followup(self._scenario)
                 self._customer_message=followup or self._customer_message
-                self._customer_refused_id=bool(followup and "لا أريد" in followup)
+                refusal_markers = {
+                    "ar": ("لا أريد", "لا أستطيع مشاركة"),
+                    "en": ("do not want", "don't want", "cannot share"),
+                    "fr": ("ne veux pas", "ne peux pas partager"),
+                    "es": ("no quiero compartir", "no puedo compartir"),
+                    "zh": ("不想提供", "无法提供", "不愿提供"),
+                }[self.locale]
+                self._customer_refused_id=any(marker in followup.lower() for marker in refusal_markers)
                 self._last_tool_result=f"رد العميل: {followup}" if followup else "لم يقدّم العميل رقمًا إضافيًا."
                 progress=0.03
         elif tool=="check_refund_policy":

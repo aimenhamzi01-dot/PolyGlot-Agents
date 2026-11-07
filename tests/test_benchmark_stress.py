@@ -86,6 +86,15 @@ class BenchmarkStressTests(unittest.TestCase):
         self.assertEqual(action["tool"], TOOLS.index("lookup_order"))
         self.assertEqual(action["order_id"], "A102")
 
+    def test_agent_extracts_ascii_order_id_adjacent_to_chinese_text(self):
+        action = RuleBasedAgent(locale="zh-Hans").act({
+            "customer_message": "请帮我查询订单A102的状态。",
+            "order_id": "",
+        })
+
+        self.assertEqual(action["tool"], TOOLS.index("lookup_order"))
+        self.assertEqual(action["order_id"], "A102")
+
 
 if __name__ == "__main__":
     unittest.main()

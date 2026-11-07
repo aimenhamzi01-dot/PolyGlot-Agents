@@ -34,7 +34,7 @@ This repository provides the open-source foundation for answering those question
 |---|---|---|
 | Data ingestion | Pinned OASST1 and Aya connectors with fail-closed rights metadata, provenance, privacy/contact screening, duplicate reports, and SHA-256 manifests | Rights metadata is evidence for review, not automated legal clearance |
 | Imported snapshot | 229,420 accepted records across 72 language codes in the latest local incoming run | Stored under `datasets/incoming`; ignored by Git, not a curated release, and not native-speaker validated |
-| Agent environment | Deterministic customer-service environment with explicit tools, policy checks, rewards, event logs, replay protection, and Arabic/English/French locale fixtures | Synthetic development fixtures; no protected hidden test set is provisioned |
+| Agent environment | Deterministic customer-service environment with explicit tools, policy checks, rewards, event logs, replay protection, and Arabic/English/French/Spanish/Simplified Chinese locale fixtures | Synthetic development fixtures; Spanish and Chinese parity checks reuse shared scenarios and do not constitute reviewed language-specific benchmarks; no protected hidden test set is provisioned |
 | Evaluation | JSON reports, failure taxonomy, latency/throughput metrics, token-cost hooks, release manifests, and regression gates | Official scores still require reviewed tasks and access-controlled holdouts |
 | Serving | FastAPI gateway in front of a private vLLM deployment with API-key authentication and streaming support | Production exposure still requires TLS, quotas, WAF/rate limiting, load testing, and operational controls |
 | Source audits | Wikimedia and arXiv registered as audit-only sources | Both remain disabled for automated full-text ingestion until item-level rights workflows exist |
@@ -71,16 +71,31 @@ These commands run the test suite, validate benchmark contracts and example reco
 ### 3. Run a deterministic benchmark
 
 ```bash
-python evaluation/run_benchmark.py \
+polyglot-run-eval \
   --benchmark evaluation/benchmarks/ar_tasks_v0.2.json \
   --split development \
   --output /tmp/polyglot-ar-development.json
 
-python -m evaluation.check_regression \
+polyglot-check-regression \
   --report /tmp/polyglot-ar-development.json
 ```
 
 The bundled rule-based baseline is expected to pass its strict regression gate. This is a health check for the environment and evaluator, not a claim about an external model.
+
+For a compatible model gateway, add `--agent openai-compatible --locale en` (or `ar`, `fr`, `es`, or `zh-Hans`). The adapter sends localized tool descriptions and safety instructions, and preserves the initial customer message across follow-up turns so an agent can retain the original intent. This improves prompt alignment; model quality still needs to be measured against reviewed, independent tasks.
+
+To check a locale pack against the shared synthetic development scenarios, pass a locale independently from the benchmark metadata:
+
+```bash
+polyglot-run-eval \
+  --benchmark evaluation/benchmarks/ar_tasks_v0.2.json \
+  --split development \
+  --locale zh-Hans \
+  --output /tmp/polyglot-zh-parity.json
+polyglot-check-regression --report /tmp/polyglot-zh-parity.json
+```
+
+This parity run checks locale integration only. The Spanish and Chinese task files remain empty, unreviewed templates; passing shared Arabic-derived scenarios is not evidence of a reviewed Spanish or Chinese benchmark or real-world model quality.
 
 ## Training-data ingestion
 

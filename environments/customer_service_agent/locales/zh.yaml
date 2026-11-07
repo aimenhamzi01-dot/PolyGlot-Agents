@@ -1,0 +1,30 @@
+code: zh
+bcp47: zh-Hans
+name: Chinese (Simplified)
+script: Hans
+status_labels:
+  delayed: 延误
+  in_transit: 运输中
+  delivered: 已送达
+status_terms:
+  delayed: [延误, 延迟]
+  in_transit: [运输中, 派送中, 在途]
+  delivered: [已送达, 已交付, 已签收]
+tool_descriptions:
+  lookup_order: 根据客户提供的订单号查询订单。
+  check_refund_policy: 找到订单后检查退款资格。
+  request_approval: 为符合条件的退款申请主管审批。
+  issue_refund: 仅在订单核实并获得批准后执行模拟退款。
+  ask_order_id: 询问订单号；场景会提供预设的客户回复。
+  escalate: 无法解决时将问题转交人工客服。
+  send_response: 发送带有可验证语义代码的最终回复。
+  close_case: 关闭问题；过早关闭会结束回合且判定失败。
+customer_messages:
+  status: "您好，我想查询订单{id}的状态。"
+  refund: "我想申请退还订单{id}的款项。"
+  already_refunded: "我想查询订单{id}的退款进度。"
+  decline: "我想申请退还订单{id}的款项。"
+  handoff: "我需要帮助，但无法提供订单号。"
+  followup: "我不想提供该号码，请帮我转接人工客服。"
+  order_id_followup: "我的订单号是{id}。"
+  refusal_followup: "我不想提供该号码，请帮我转接人工客服。"

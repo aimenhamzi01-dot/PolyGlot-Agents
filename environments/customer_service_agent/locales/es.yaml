@@ -1,0 +1,30 @@
+code: es
+bcp47: es
+name: Spanish
+script: Latn
+status_labels:
+  delayed: retrasado
+  in_transit: en tránsito
+  delivered: entregado
+status_terms:
+  delayed: [retrasado, retrasada, tardío, tardía]
+  in_transit: [en tránsito, en camino]
+  delivered: [entregado, entregada, recibido, recibida]
+tool_descriptions:
+  lookup_order: Buscar un pedido usando el número proporcionado por el cliente.
+  check_refund_policy: Comprobar si el pedido puede recibir un reembolso después de encontrarlo.
+  request_approval: Solicitar la aprobación de un supervisor para un reembolso elegible.
+  issue_refund: Emitir un reembolso simulado solo después de verificar el pedido y obtener aprobación.
+  ask_order_id: Pedir el número del pedido; el escenario proporciona una respuesta del cliente.
+  escalate: Transferir el caso a un agente humano cuando no pueda resolverse.
+  send_response: Enviar una respuesta final con un código semántico verificable.
+  close_case: Cerrar el caso; el cierre prematuro termina el episodio sin éxito.
+customer_messages:
+  status: "Hola, quisiera saber el estado del pedido {id}."
+  refund: "Quiero solicitar un reembolso para el pedido {id}."
+  already_refunded: "Quisiera consultar el reembolso del pedido {id}."
+  decline: "Quiero solicitar un reembolso para el pedido {id}."
+  handoff: "Necesito ayuda, pero no puedo compartir el número del pedido."
+  followup: "No quiero compartir el número. Por favor, pásame con un agente."
+  order_id_followup: "El número de mi pedido es {id}."
+  refusal_followup: "No quiero compartir el número. Por favor, pásame con un agente."

@@ -4,7 +4,7 @@ This document defines what PolyGlot Agents can verify automatically and what sti
 
 ## Current release state
 
-The current public Arabic benchmark is `evaluation/benchmarks/ar_tasks_v0.2.json` (24 development tasks). Each task references a deterministic environment scenario and declares an `expected_outcome`; the validator checks that the declared outcome matches the scenario's machine-readable goal. The runner also records the actual final resolution and explicit transient-failure/recovery markers.
+The current public Arabic benchmark is `evaluation/benchmarks/ar_tasks_v0.2.json` (24 development tasks). Each task references a deterministic environment scenario and declares an `expected_outcome`; the validator checks that the declared outcome matches the scenario's machine-readable goal. The runner also records the actual final resolution and explicit transient-failure/recovery markers. Locale-parity runs in Spanish or Simplified Chinese reuse these shared synthetic scenarios for implementation checks only; they do not represent authored or reviewed Spanish/Chinese benchmark sets.
 
 The benchmark is **not yet an official or native-speaker-validated benchmark**: its review status remains `pending_native_speaker_review`, and no protected hidden test set is provisioned. Earlier placeholder test cards were present in public Git history. Their contents are therefore compromised and must never be reused as a secret holdout. This repository does not rewrite its published history.
 
@@ -16,7 +16,7 @@ Before merging a public benchmark change, run:
 python -m pip install -e ".[test]"
 python -m pytest -q
 python -m scripts.validate_benchmarks
-python evaluation/run_benchmark.py --output /tmp/polyglot-ar-development.json
+polyglot-run-eval --output /tmp/polyglot-ar-development.json
 ```
 
 For active customer-service benchmarks, every card must include non-empty `id`, `scenario_id`, `goal`, `success_condition`, `safety_checks`, and a machine-readable `expected_outcome`. The outcome must match the environment goal; task IDs and scenario IDs must be unique within the benchmark. New task wording must not be treated as reviewed merely because its JSON schema passes.

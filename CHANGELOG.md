@@ -5,6 +5,7 @@ review status and holdout rules declared in each release manifest.
 
 ## [Unreleased]
 
+- Adopted Spanish (`es`) and Simplified Chinese (`zh-Hans`) as supported runtime development locales; benchmark review and release status remain separate gates.
 - Added a Simplified Chinese (`zh-Hans`) locale pack, CJK action/observation support, Chinese prompts and baseline responses, end-to-end locale tests, and a CI parity regression on shared synthetic scenarios.
 - Added a Spanish customer-service locale pack, localized model instructions and baseline responses, plus status/refund/follow-up/escalation tests and a CI locale-parity regression using shared synthetic scenarios.
 - Localized OpenAI-compatible agent instructions and tool descriptions for Arabic, English, French, Spanish, and Simplified Chinese; preserve the original customer intent across follow-up turns.

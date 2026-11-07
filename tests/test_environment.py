@@ -2,7 +2,7 @@ import unittest
 try:
     import gymnasium as gym
     from gymnasium.utils.env_checker import check_env
-    from environments.customer_service_agent import make_action, ArabicCustomerServiceEnv, CustomerServiceEnv
+    from environments.customer_service_agent import make_action, ArabicCustomerServiceEnv, CustomerServiceEnv, available_locales
     import environments.customer_service_agent
     HAS_GYM=True
 except ImportError:
@@ -11,6 +11,12 @@ except ImportError:
 @unittest.skipUnless(HAS_GYM,'Install Gymnasium to test the environment')
 class EnvironmentTests(unittest.TestCase):
     def new_env(self, **kwargs): return gym.make('PolyGlotCustomerServiceAr-v1',**kwargs)
+
+    def test_spanish_and_chinese_are_available_development_locales(self):
+        locales=set(available_locales())
+        self.assertIn("es",locales)
+        self.assertIn("zh",locales)
+        self.assertEqual(CustomerServiceEnv(locale="zh-Hans")._locale_pack["bcp47"],"zh-Hans")
 
     def test_status_requires_lookup_then_truthful_response(self):
         env=self.new_env(); obs,info=env.reset(seed=7,options={'scenario_id':'cs_ar_001'})

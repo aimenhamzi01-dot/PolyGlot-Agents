@@ -66,7 +66,7 @@ python evaluation/run_benchmark.py \
   --output /tmp/polyglot-en-development.json
 ```
 
-The current `ar`, `en`, `fr`, `es`, and `zh-Hans` packs are synthetic development fixtures. Spanish and Chinese locale parity checks reuse shared synthetic scenarios only; `evaluation/benchmarks/es_tasks.json` and `evaluation/benchmarks/zh_tasks.json` remain empty, unreviewed templates. All locales require native-speaker review, natural task authoring, and language-specific calibration before publishing comparative scores.
+The current `ar`, `en`, `fr`, `es`, and `zh-Hans` packs are available runtime locales; Spanish and Simplified Chinese are adopted as supported development locales. Their parity checks reuse shared synthetic scenarios only; `evaluation/benchmarks/es_tasks.json` and `evaluation/benchmarks/zh_tasks.json` remain empty, unreviewed templates. This locale adoption does not approve benchmark claims: natural language review, independent task authoring, and language-specific calibration are still required before publishing comparative scores.
 
 ## Adding a language
 

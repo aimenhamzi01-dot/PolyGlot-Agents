@@ -26,3 +26,5 @@ customer_messages:
   decline: "I would like a refund for order {id}."
   handoff: "I need help but cannot share the order number."
   followup: "I do not want to share the number. Please transfer me to an agent."
+  order_id_followup: "My order number is {id}."
+  refusal_followup: "I do not want to share the order number. Please transfer me to a support agent."

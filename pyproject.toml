@@ -34,6 +34,7 @@ training = [
 
 [project.scripts]
 polyglot-validate-benchmarks = "scripts.validate_benchmarks:main"
+polyglot-validate-locales = "scripts.validate_locales:main"
 polyglot-validate-records = "scripts.validate_records:main"
 polyglot-render-report = "evaluation.report:main"
 polyglot-check-regression = "evaluation.check_regression:main"
@@ -42,6 +43,7 @@ polyglot-review-queue = "scripts.review_queue:main"
 polyglot-rights-lifecycle = "scripts.rights_lifecycle:main"
 polyglot-release-manifest = "evaluation.release_manifest:main"
 polyglot-coverage-dashboard = "evaluation.coverage_dashboard:main"
+polyglot-scaffold-language = "scripts.scaffold_language:main"
 
 [tool.setuptools.packages.find]
 include = ["environments*", "evaluation*", "scripts*", "pipelines*"]

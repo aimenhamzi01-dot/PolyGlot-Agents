@@ -35,6 +35,27 @@ protected reviewer system, not personal data committed to the repository.
 
 Use Python 3.10+, type hints where useful, clear CLI help, deterministic behavior, and tests that run offline. Do not introduce network calls in unit tests. Environment rewards must be based on observable, verifiable task completion, not stylistic preference alone. Document safety boundaries and avoid asking agents to collect unnecessary customer personal information.
 
+### Adding a language
+
+Start with the data/benchmark scaffold, then add a runtime locale pack only when the project supports the language in the agent environment:
+
+```bash
+polyglot-scaffold-language --code ja --source-tag ja
+```
+
+The scaffold creates raw/curated dataset folders and an empty benchmark template marked `requires_native_speaker_authoring`; it does not create or approve a runtime locale pack. For a runtime locale, add `environments/customer_service_agent/locales/<code>.yaml` with localized status labels and evidence terms, all tool descriptions, and all customer message forms. Add corresponding evidence terms to the environment verifier and agent instructions/baseline as needed. Cover Unicode text-space membership and end-to-end status, refund, refusal/handoff, and missing-ID flows. Run the locale contract validator and shared parity tests:
+
+```bash
+polyglot-validate-locales
+python -m pytest -q tests/test_environment.py tests/test_openai_agent.py tests/test_benchmark_runner.py
+python evaluation/run_benchmark.py \
+  --benchmark evaluation/benchmarks/ar_tasks_v0.2.json \
+  --split development --locale ja --output /tmp/polyglot-ja-parity.json
+polyglot-check-regression --report /tmp/polyglot-ja-parity.json
+```
+
+Parity against shared scenarios checks software integration, not language quality. Keep the new benchmark template empty until natural tasks have been authored and reviewed; never mark machine-generated translations as native-speaker reviewed.
+
 ## Pull requests
 
 A pull request should explain the motivation, expected behavior, test command and output, data source/license changes, and language-specific validation. Run the same checks used by CI:

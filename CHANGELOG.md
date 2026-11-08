@@ -5,6 +5,7 @@ review status and holdout rules declared in each release manifest.
 
 ## [Unreleased]
 
+- Added `polyglot-validate-locales`, integrated locale contract checks into `make check` and CI, and exposed the language scaffolder as `polyglot-scaffold-language` with a documented contributor workflow.
 - Added Japanese (`ja`) and Russian (`ru`) runtime locale packs, Unicode script support, localized agent prompts and deterministic baselines, empty benchmark templates, and CI parity regressions on shared synthetic scenarios.
 - Pass locale-specific `customer_prompts` from benchmark cards into the agent's actual environment observation, with safe fallback and parity tests for the same scenario under distinct wording.
 - Adopted Spanish (`es`) and Simplified Chinese (`zh-Hans`) as supported runtime development locales; benchmark review and release status remain separate gates.

@@ -26,3 +26,5 @@ customer_messages:
   decline: "Je souhaite un remboursement pour la commande {id}."
   handoff: "J'ai besoin d'aide mais je ne peux pas partager le numéro de commande."
   followup: "Je ne veux pas partager le numéro. Merci de me transférer à un agent."
+  order_id_followup: "Mon numéro de commande est le {id}."
+  refusal_followup: "Je ne souhaite pas communiquer le numéro. Merci de me transférer à un agent du service client."

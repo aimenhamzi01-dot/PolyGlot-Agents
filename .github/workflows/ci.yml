@@ -61,6 +61,8 @@ jobs:
           PY
       - name: Validate benchmark task contracts
         run: python -m scripts.validate_benchmarks
+      - name: Validate locale pack contracts
+        run: python -m scripts.validate_locales
       - name: Validate bundled example records
         run: python -m scripts.validate_records --input examples/multilingual.jsonl
       - name: Run deterministic baseline regression

@@ -66,7 +66,7 @@ make test
 make check
 ```
 
-These commands run the test suite, validate benchmark contracts and example records, and compile the Python packages. CI runs the same checks on Python 3.10, 3.11, and 3.12.
+These commands run the test suite, validate benchmark and locale-pack contracts plus example records, and compile the Python packages. CI runs the same checks on Python 3.10, 3.11, and 3.12.
 
 ### 3. Run a deterministic benchmark
 
@@ -96,6 +96,16 @@ polyglot-check-regression --report /tmp/polyglot-zh-parity.json
 ```
 
 This parity run checks locale integration only. The Spanish, Chinese, Japanese, and Russian task files remain empty, unreviewed templates; passing shared Arabic-derived scenarios is not evidence of reviewed language-specific benchmarks or real-world model quality.
+
+### Contribute a language
+
+Create the dataset folders and an explicitly unreviewed benchmark template with:
+
+```bash
+polyglot-scaffold-language --code ja --source-tag ja
+```
+
+This does not add a runtime locale or create benchmark tasks. For development guidance on locale packs, Unicode support, safety evidence, and review gates, see [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md). Run `polyglot-validate-locales` (also included in `make check`) before opening a pull request.
 
 ## Training-data ingestion
 

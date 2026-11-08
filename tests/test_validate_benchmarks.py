@@ -31,6 +31,38 @@ class ValidateBenchmarksTests(unittest.TestCase):
 
         self.assertEqual(validate_payload(payload), [])
 
+    def test_accepts_customer_prompts_for_supported_locales(self):
+        task = self._customer_service_task()
+        task["customer_prompts"] = {
+            "ar": "أين وصل طلبي A102؟",
+            "en": "Could you check order A102?",
+            "es": "¿Podrían revisar el pedido A102?",
+            "zh-Hans": "请帮我查一下订单 A102。",
+        }
+        payload = {
+            "benchmark_id": "test-multilingual-prompts",
+            "language": "ar",
+            "environment": "PolyGlotCustomerServiceAr-v1",
+            "tasks": [task],
+        }
+
+        self.assertEqual(validate_payload(payload), [])
+
+    def test_rejects_invalid_or_unsupported_customer_prompts(self):
+        task = self._customer_service_task()
+        task["customer_prompts"] = {"xx": "Hello"}
+        task["customer_prompt"] = "Ambiguous single-locale prompt"
+        payload = {
+            "benchmark_id": "test-invalid-prompts",
+            "language": "en",
+            "environment": "PolyGlotCustomerServiceAr-v1",
+            "tasks": [task],
+        }
+
+        errors = validate_payload(payload)
+        self.assertTrue(any("either customer_prompt or customer_prompts" in error for error in errors))
+        self.assertTrue(any("unsupported locale 'xx'" in error for error in errors))
+
     def test_accepts_empty_placeholder_only_when_explicitly_declared(self):
         payload = {
             "benchmark_id": "polyglot-en",

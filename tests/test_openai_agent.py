@@ -30,6 +30,8 @@ class OpenAIAgentTests(unittest.TestCase):
         french = build_system_prompt("fr-CA")
         spanish = build_system_prompt("es-MX")
         chinese = build_system_prompt("zh-Hans")
+        japanese = build_system_prompt("ja")
+        russian = build_system_prompt("ru")
 
         self.assertIn("Write the final customer-facing message in English", english)
         self.assertIn("issue_refund succeeds", english)
@@ -39,6 +41,10 @@ class OpenAIAgentTests(unittest.TestCase):
         self.assertIn("emite el reembolso solo con el identificador de aprobación recibido", spanish)
         self.assertIn("用简体中文回复客户", chinese)
         self.assertIn("取得真实 approval_id 后才执行退款", chinese)
+        self.assertIn("最終的な顧客向けメッセージはJapanese", japanese)
+        self.assertIn("issue_refund の成功後", japanese)
+        self.assertIn("итоговое сообщение клиенту пишите на языке Russian", russian)
+        self.assertIn("Подтверждайте возврат лишь после успешного issue_refund", russian)
 
 
     def test_openai_compatible_agent_exposes_provider_token_usage(self):
@@ -154,6 +160,34 @@ class OpenAIAgentTests(unittest.TestCase):
         user_context = json.loads(request_body["messages"][1]["content"])
         self.assertEqual(user_context["locale"], "zh-Hans")
         self.assertIn("根据客户提供的订单号查询订单", user_context["tool_descriptions"]["lookup_order"])
+
+    def test_agent_sends_japanese_and_russian_tool_descriptions_to_provider(self):
+        action = {"tool": "lookup_order", "order_id": "A102", "approval_id": "",
+                  "resolution": "other", "message": ""}
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return json.dumps({"choices": [{"message": {"content": json.dumps(action)}}]}).encode("utf-8")
+
+        for locale, prompt_marker, tool_marker, customer_message in (
+            ("ja", "カスタマーサービス担当者", "お客様から提供された注文番号", "注文 A102 の状況を確認してください。"),
+            ("ru", "оператор службы поддержки", "Найти заказ по номеру", "Проверьте заказ A102, пожалуйста."),
+        ):
+            with self.subTest(locale=locale):
+                agent = OpenAICompatibleAgent("http://mock-provider", "mock-model", locale=locale)
+                with patch("evaluation.openai_agent.urllib.request.urlopen", return_value=FakeResponse()) as send:
+                    agent.act({"customer_message": customer_message})
+                request_body = json.loads(send.call_args.args[0].data.decode("utf-8"))
+                self.assertIn(prompt_marker, request_body["messages"][0]["content"])
+                user_context = json.loads(request_body["messages"][1]["content"])
+                self.assertEqual(user_context["locale"], locale)
+                self.assertIn(tool_marker, user_context["tool_descriptions"]["lookup_order"])
 
     def test_agent_preserves_original_customer_intent_after_followup(self):
         def response_for(tool):

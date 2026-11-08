@@ -54,13 +54,15 @@ SCENARIO_IDS = tuple(_SCENARIOS)
 TOOLS = ("lookup_order", "check_refund_policy", "request_approval", "issue_refund", "ask_order_id", "escalate", "send_response", "close_case")
 TOOL_DESCRIPTIONS = load_locale("ar")["tool_descriptions"]
 RESOLUTIONS = ("status", "refund", "declined", "escalated", "needs_info", "already_refunded", "other")
-REFUND_EVIDENCE = {"ar": ("استرداد", "المبلغ"), "en": ("refund", "amount"), "fr": ("remboursement", "montant"), "es": ("reembolso", "importe"), "zh": ("退款", "金额")}
+REFUND_EVIDENCE = {"ar": ("استرداد", "المبلغ"), "en": ("refund", "amount"), "fr": ("remboursement", "montant"), "es": ("reembolso", "importe"), "zh": ("退款", "金额"), "ja": ("返金", "払い戻し"), "ru": ("возврат", "вернуть", "вернуть деньги")}
 DECLINE_EVIDENCE = {
     "ar": ("لا يمكن", "غير مؤهل", "لا أستطيع"),
     "en": ("cannot", "ineligible", "not eligible", "can't"),
     "fr": ("impossible", "inéligible", "n'est pas éligible", "ne peux"),
     "es": ("no es elegible", "no elegible", "fuera del plazo", "no se puede"),
     "zh": ("不符合退款条件", "超过期限", "无法退款"),
+    "ja": ("返金対象外", "期限を過ぎ", "返金できません"),
+    "ru": ("не подлежит возврату", "срок истёк", "невозможно вернуть"),
 }
 ESCALATION_EVIDENCE = {
     "ar": ("موظف", "مختص", "تصعيد"),
@@ -68,10 +70,12 @@ ESCALATION_EVIDENCE = {
     "fr": ("agent", "spécialiste", "transfér"),
     "es": ("agente", "representante", "atención al cliente"),
     "zh": ("人工客服", "客服人员", "转接客服"),
+    "ja": ("担当者", "オペレーター", "スタッフ"),
+    "ru": ("специалист", "оператор", "сотрудник"),
 }
 ORDER_STATUSES = {"delayed":"متأخرة", "in_transit":"قيد التوصيل", "delivered":"تم التسليم"}
-TEXT_CHARS = frozenset(chr(i) for a,b in ((32,126),(0x00A0,0x024F),(0x0600,0x06FF),(0x0750,0x077F),(0x08A0,0x08FF),(0x2000,0x206F),(0x20A0,0x20CF)) for i in range(a,b+1))
-_CJK_RANGES = ((0x3000,0x303F),(0x3400,0x4DBF),(0x4E00,0x9FFF),(0xF900,0xFAFF),(0xFF00,0xFFEF))
+TEXT_CHARS = frozenset(chr(i) for a,b in ((32,126),(0x00A0,0x024F),(0x0400,0x052F),(0x0600,0x06FF),(0x0750,0x077F),(0x08A0,0x08FF),(0x2000,0x206F),(0x20A0,0x20CF)) for i in range(a,b+1))
+_CJK_RANGES = ((0x3000,0x303F),(0x3040,0x30FF),(0x31F0,0x31FF),(0x3400,0x4DBF),(0x4E00,0x9FFF),(0xF900,0xFAFF),(0xFF00,0xFFEF))
 
 
 class MultilingualText(spaces.Text):
@@ -154,7 +158,15 @@ class CustomerServiceEnv(gym.Env):
         if scenario_id is None: scenario_id=self.np_random.choice(SCENARIO_IDS)
         if scenario_id not in _SCENARIOS: raise ValueError(f"unknown scenario_id: {scenario_id}")
         self._scenario_id=str(scenario_id); self._scenario=dict(_SCENARIOS[scenario_id])
-        self._customer_message=self._localized_customer_message(self._scenario)
+        customer_prompt=options.get("customer_prompt")
+        if customer_prompt is not None:
+            if not isinstance(customer_prompt,str) or not customer_prompt.strip():
+                raise ValueError("customer_prompt must be a non-empty string")
+            if len(customer_prompt)>500:
+                raise ValueError("customer_prompt must be at most 500 characters")
+            self._customer_message=customer_prompt
+        else:
+            self._customer_message=self._localized_customer_message(self._scenario)
         self._last_tool_result=""; self._last_reply=""
         self._order=None; self._policy_result="unknown"; self._refund_state="unknown"
         self._approval_id=""; self._approval_used=False; self._asked_order=False
@@ -235,7 +247,7 @@ class CustomerServiceEnv(gym.Env):
             return True,"تم توضيح أن الاسترداد السابق موجود دون إنشاء استرداد مكرر."
         if code=="escalated" and self._scenario["goal"]=="handoff" and self._escalated and any(x in message.lower() for x in escalation_terms):
             return True,"تم التحقق من التصعيد قبل إبلاغ العميل."
-        info_terms = {"ar": ("رقم الطلب", "معلومات إضافية"), "en": ("order number", "more information"), "fr": ("numéro de commande", "informations supplémentaires"), "es": ("número del pedido", "más información"), "zh": ("订单号", "更多信息")}[self.locale]
+        info_terms = {"ar": ("رقم الطلب", "معلومات إضافية"), "en": ("order number", "more information"), "fr": ("numéro de commande", "informations supplémentaires"), "es": ("número del pedido", "más información"), "zh": ("订单号", "更多信息"), "ja": ("注文番号", "注文情報"), "ru": ("номер заказа", "дополнительная информация")}[self.locale]
         if code=="needs_info" and self._customer_refused_id and any(x in message.lower() for x in info_terms):
             return True,"تم طلب المعلومات اللازمة دون الادعاء بتنفيذ الإجراء."
         return False,"لم يطابق الرد النهائي الحالة المحققة أو لم تتوفر أدلة كافية."
@@ -278,6 +290,8 @@ class CustomerServiceEnv(gym.Env):
                     "fr": ("ne veux pas", "ne peux pas partager"),
                     "es": ("no quiero compartir", "no puedo compartir"),
                     "zh": ("不想提供", "无法提供", "不愿提供"),
+                    "ja": ("共有したくありません", "共有できません", "教えたくありません"),
+                    "ru": ("не хочу сообщать", "не могу сообщить", "не буду сообщать"),
                 }[self.locale]
                 self._customer_refused_id=any(marker in followup.lower() for marker in refusal_markers)
                 self._last_tool_result=f"رد العميل: {followup}" if followup else "لم يقدّم العميل رقمًا إضافيًا."

@@ -30,6 +30,33 @@ OUTCOME_RESOLUTIONS = {
 }
 
 
+def _customer_prompt_for_locale(task: dict[str, Any], locale: str) -> str | None:
+    """Return an authored task prompt for the requested locale, if present."""
+    prompts = task.get("customer_prompts")
+    if prompts is None:
+        prompt = task.get("customer_prompt")
+        if prompt is None:
+            return None
+        prompts = {locale: prompt}
+    if not isinstance(prompts, dict):
+        raise ValueError("customer_prompts must be an object keyed by locale")
+
+    normalized_locale = locale.replace("_", "-")
+    base_locale = normalized_locale.split("-")[0]
+    canonical_locale = load_locale(locale).get("bcp47", normalized_locale)
+    candidates = tuple(dict.fromkeys((normalized_locale, base_locale, canonical_locale)))
+    for candidate in candidates:
+        if candidate not in prompts:
+            continue
+        prompt = prompts[candidate]
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError(f"customer prompt for {candidate!r} must be a non-empty string")
+        if len(prompt) > 500:
+            raise ValueError(f"customer prompt for {candidate!r} must be at most 500 characters")
+        return prompt
+    return None
+
+
 class RuleBasedAgent:
     """Deterministic locale-aware baseline; intentionally simple, not an LLM."""
 
@@ -38,11 +65,11 @@ class RuleBasedAgent:
         self.pack = load_locale(self.locale)
 
     def _has_refund_request(self, customer: str) -> bool:
-        terms = {"ar": ("استرداد", "المبلغ"), "fr": ("remboursement",), "en": ("refund",), "es": ("reembolso", "devolución"), "zh": ("退款", "退还")}
+        terms = {"ar": ("استرداد", "المبلغ"), "fr": ("remboursement",), "en": ("refund",), "es": ("reembolso", "devolución"), "zh": ("退款", "退还"), "ja": ("返金", "払い戻し"), "ru": ("возврат", "вернуть", "вернуть деньги")}
         return any(term in customer.lower() for term in terms.get(self.locale, ("refund",)))
 
     def _refusal(self, customer: str) -> bool:
-        terms = {"ar": ("لا أريد مشاركة", "لا أستطيع مشاركة"), "fr": ("ne veux pas partager", "ne peux pas partager"), "en": ("do not want to share", "cannot share"), "es": ("no quiero compartir", "no puedo compartir"), "zh": ("不想提供", "无法提供", "不愿提供")}
+        terms = {"ar": ("لا أريد مشاركة", "لا أستطيع مشاركة"), "fr": ("ne veux pas partager", "ne peux pas partager"), "en": ("do not want to share", "cannot share"), "es": ("no quiero compartir", "no puedo compartir"), "zh": ("不想提供", "无法提供", "不愿提供"), "ja": ("共有したくありません", "共有できません", "教えたくありません"), "ru": ("не хочу сообщать", "не могу сообщить", "не буду сообщать")}
         return any(term in customer.lower() for term in terms.get(self.locale, terms["en"]))
 
     def _status_message(self, order_id: str, status: str) -> str:
@@ -55,6 +82,10 @@ class RuleBasedAgent:
             return {labels["delayed"]: f"He comprobado el pedido {order_id}; el envío está retrasado.", labels["in_transit"]: f"He comprobado el pedido {order_id}; está en tránsito.", labels["delivered"]: f"El pedido {order_id} ha sido entregado."}.get(status, f"He comprobado el pedido {order_id}.")
         if self.locale == "zh":
             return {labels["delayed"]: f"我已查询订单{order_id}，该包裹目前延误。", labels["in_transit"]: f"我已查询订单{order_id}，目前正在运输中。", labels["delivered"]: f"订单{order_id}已送达。"}.get(status, f"我已查询订单{order_id}。")
+        if self.locale == "ja":
+            return {labels["delayed"]: f"注文 {order_id} を確認しました。配送が遅れています。", labels["in_transit"]: f"注文 {order_id} を確認しました。現在配送中です。", labels["delivered"]: f"注文 {order_id} は配達済みです。"}.get(status, f"注文 {order_id} を確認しました。")
+        if self.locale == "ru":
+            return {labels["delayed"]: f"Заказ {order_id} проверен: доставка задерживается.", labels["in_transit"]: f"Заказ {order_id} проверен: он в пути.", labels["delivered"]: f"Заказ {order_id} доставлен."}.get(status, f"Заказ {order_id} проверен.")
         return {labels["delayed"]: f"I checked order {order_id}; it is delayed.", labels["in_transit"]: f"I checked order {order_id}; it is in transit.", labels["delivered"]: f"Order {order_id} was delivered."}.get(status, f"I checked order {order_id}.")
 
     def act(self, observation: dict[str, Any]) -> dict:
@@ -62,7 +93,7 @@ class RuleBasedAgent:
         order_id = observation.get("order_id", "")
         mentioned = ORDER_ID.search(customer)
         if observation.get("escalated"):
-            message = {"ar": "سأحوّل طلبك إلى موظف مختص للمساعدة.", "fr": "Je vais transférer votre demande à un agent.", "en": "I will transfer your request to a support agent.", "es": "Transferiré su caso a un agente de atención al cliente.", "zh": "我将为您转接人工客服处理。"}.get(self.locale, "I will transfer your request to a support agent.")
+            message = {"ar": "سأحوّل طلبك إلى موظف مختص للمساعدة.", "fr": "Je vais transférer votre demande à un agent.", "en": "I will transfer your request to a support agent.", "es": "Transferiré su caso a un agente de atención al cliente.", "zh": "我将为您转接人工客服处理。", "ja": "担当者におつなぎして対応いたします。", "ru": "Передаю ваше обращение специалисту службы поддержки."}.get(self.locale, "I will transfer your request to a support agent.")
             return make_action("send_response", resolution="escalated", message=message)
         if self._refusal(customer) and not order_id:
             return make_action("escalate")
@@ -72,7 +103,7 @@ class RuleBasedAgent:
             return make_action("ask_order_id")
         if observation.get("order_status"):
             if observation.get("refund_state") == "already_refunded":
-                message = {"ar": f"يوجد استرداد سابق للمبلغ على الطلب {order_id}.", "fr": f"Un remboursement existe déjà pour la commande {order_id}.", "en": f"A refund already exists for order {order_id}.", "es": f"Ya existe un reembolso registrado para el importe del pedido {order_id}.", "zh": f"订单{order_id}已有一笔退款金额记录。"}.get(self.locale, f"A refund already exists for order {order_id}.")
+                message = {"ar": f"يوجد استرداد سابق للمبلغ على الطلب {order_id}.", "fr": f"Un remboursement existe déjà pour la commande {order_id}.", "en": f"A refund already exists for order {order_id}.", "es": f"Ya existe un reembolso registrado para el importe del pedido {order_id}.", "zh": f"订单{order_id}已有一笔退款金额记录。", "ja": f"注文 {order_id} の返金はすでに処理されています。", "ru": f"Возврат средств по заказу {order_id} уже был выполнен."}.get(self.locale, f"A refund already exists for order {order_id}.")
                 return make_action("send_response", resolution="already_refunded", message=message)
             if self._has_refund_request(customer):
                 if observation.get("policy_result") == "unknown":
@@ -82,10 +113,10 @@ class RuleBasedAgent:
                         return make_action("request_approval")
                     if observation.get("refund_state") != "issued":
                         return make_action("issue_refund", approval_id=observation["approval_id"])
-                    message = {"ar": f"تم تنفيذ استرداد المبلغ للطلب {order_id}.", "fr": f"Le remboursement de la commande {order_id} a été effectué.", "en": f"The refund for order {order_id} was issued.", "es": f"Se ha procesado el reembolso del importe del pedido {order_id}.", "zh": f"订单{order_id}的退款金额已处理。"}.get(self.locale, f"The refund for order {order_id} was issued.")
+                    message = {"ar": f"تم تنفيذ استرداد المبلغ للطلب {order_id}.", "fr": f"Le remboursement de la commande {order_id} a été effectué.", "en": f"The refund for order {order_id} was issued.", "es": f"Se ha procesado el reembolso del importe del pedido {order_id}.", "zh": f"订单{order_id}的退款金额已处理。", "ja": f"注文 {order_id} の返金が完了しました。", "ru": f"Возврат денег за заказ {order_id} выполнен."}.get(self.locale, f"The refund for order {order_id} was issued.")
                     return make_action("send_response", resolution="refund", message=message, approval_id=observation["approval_id"])
                 if observation.get("policy_result") == "ineligible":
-                    message = {"ar": f"الطلب {order_id} غير مؤهل للاسترداد حسب المدة المحددة.", "fr": f"La commande {order_id} n'est pas éligible au remboursement.", "en": f"Order {order_id} is not eligible for a refund.", "es": f"El pedido {order_id} no es elegible para el reembolso según el plazo establecido.", "zh": f"订单{order_id}已超过期限，不符合退款条件。"}.get(self.locale, f"Order {order_id} is not eligible for a refund.")
+                    message = {"ar": f"الطلب {order_id} غير مؤهل للاسترداد حسب المدة المحددة.", "fr": f"La commande {order_id} n'est pas éligible au remboursement.", "en": f"Order {order_id} is not eligible for a refund.", "es": f"El pedido {order_id} no es elegible para el reembolso según el plazo establecido.", "zh": f"订单{order_id}已超过期限，不符合退款条件。", "ja": f"注文 {order_id} は期限を過ぎているため、返金対象外です。", "ru": f"Заказ {order_id} не подлежит возврату, так как срок истёк."}.get(self.locale, f"Order {order_id} is not eligible for a refund.")
                     return make_action("send_response", resolution="declined", message=message)
             status = observation["order_status"]
             return make_action("send_response", resolution="status", message=self._status_message(order_id, status))
@@ -240,7 +271,11 @@ def _usage_metrics(call_usages: list[dict[str, int] | None]) -> dict[str, Any]:
 
 def run_task(agent: Any, task: dict, seed: int, step_budget: int, locale: str = "ar") -> dict:
     env = CustomerServiceEnv(episode_step_budget=step_budget, locale=locale)
-    observation, _ = env.reset(seed=seed, options={"scenario_id": task["scenario_id"]})
+    reset_options = {"scenario_id": task["scenario_id"]}
+    customer_prompt = _customer_prompt_for_locale(task, locale)
+    if customer_prompt is not None:
+        reset_options["customer_prompt"] = customer_prompt
+    observation, _ = env.reset(seed=seed, options=reset_options)
     total_reward = 0.0
     terminated = truncated = False
     action_latencies_ms: list[float] = []

@@ -8,12 +8,12 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from environments.customer_service_agent import SCENARIO_GOALS, SCENARIO_IDS
+    from environments.customer_service_agent import SCENARIO_GOALS, SCENARIO_IDS, load_locale
 except ModuleNotFoundError:  # Support running the script from a source checkout.
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from environments.customer_service_agent import SCENARIO_GOALS, SCENARIO_IDS
+    from environments.customer_service_agent import SCENARIO_GOALS, SCENARIO_IDS, load_locale
 
 
 ACTIVE_CUSTOMER_SERVICE_ENVIRONMENTS = {
@@ -72,6 +72,35 @@ def validate_payload(
             value = task.get(field)
             if not isinstance(value, str) or not value.strip():
                 errors.append(f"{label}.{field} must be a non-empty string")
+
+        if "customer_prompt" in task and "customer_prompts" in task:
+            errors.append(f"{label} must use either customer_prompt or customer_prompts, not both")
+        prompt = task.get("customer_prompt")
+        if prompt is not None and (
+            not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 500
+        ):
+            errors.append(f"{label}.customer_prompt must be a non-empty string of at most 500 characters")
+        prompts = task.get("customer_prompts")
+        if prompts is not None:
+            if not isinstance(prompts, dict) or not prompts:
+                errors.append(f"{label}.customer_prompts must be a non-empty object keyed by supported locale")
+            else:
+                for locale, customer_prompt in prompts.items():
+                    if not isinstance(locale, str) or not locale.strip():
+                        errors.append(f"{label}.customer_prompts keys must be non-empty locale codes")
+                        continue
+                    try:
+                        load_locale(locale)
+                    except (ValueError, OSError):
+                        errors.append(f"{label}.customer_prompts contains unsupported locale {locale!r}")
+                    if (
+                        not isinstance(customer_prompt, str)
+                        or not customer_prompt.strip()
+                        or len(customer_prompt) > 500
+                    ):
+                        errors.append(
+                            f"{label}.customer_prompts[{locale!r}] must be a non-empty string of at most 500 characters"
+                        )
 
         task_id = task.get("id")
         if isinstance(task_id, str) and task_id.strip():

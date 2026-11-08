@@ -101,5 +101,17 @@ jobs:
             --output /tmp/polyglot-zh-locale-parity-report.json
           python -m evaluation.check_regression \
             --report /tmp/polyglot-zh-locale-parity-report.json
+      - name: Run Japanese and Russian locale parity regressions on shared synthetic tasks
+        run: |
+          set -euo pipefail
+          for locale in ja ru; do
+            python evaluation/run_benchmark.py \
+              --benchmark evaluation/benchmarks/ar_tasks_v0.2.json \
+              --split development \
+              --locale "${locale}" \
+              --output "/tmp/polyglot-${locale}-locale-parity-report.json"
+            python -m evaluation.check_regression \
+              --report "/tmp/polyglot-${locale}-locale-parity-report.json"
+          done
       - name: Check Python bytecode compilation
         run: python -m compileall -q environments evaluation scripts pipelines tests

@@ -1,0 +1,30 @@
+code: ja
+bcp47: ja
+name: Japanese
+script: Jpan
+status_labels:
+  delayed: 配送遅延
+  in_transit: 配送中
+  delivered: 配達済み
+status_terms:
+  delayed: [配送遅延, 遅延, 遅れ]
+  in_transit: [配送中, 輸送中]
+  delivered: [配達済み, お届け済み, 到着済み]
+tool_descriptions:
+  lookup_order: お客様から提供された注文番号を使って注文を検索します。
+  check_refund_policy: 注文を確認した後、返金対象かどうかを確認します。
+  request_approval: 返金対象の場合、管理者に承認を依頼します。
+  issue_refund: 注文確認と承認の後にのみ、模擬返金を実行します。
+  ask_order_id: 注文番号を尋ねます。シナリオではお客様の回答が用意されています。
+  escalate: 解決できない場合、ケースを担当者へ引き継ぎます。
+  send_response: 検証可能な意味コードを付けて最終回答を送信します。
+  close_case: ケースを終了します。早期終了は失敗となり、エピソードを終えます。
+customer_messages:
+  status: "注文 {id} の現在の状況を確認していただけますか？"
+  refund: "注文 {id} の返金をお願いします。"
+  already_refunded: "注文 {id} の返金状況を確認したいです。"
+  decline: "注文 {id} の返金をお願いします。"
+  handoff: "返金について相談したいのですが、注文番号は共有できません。"
+  followup: "注文番号を共有したくありません。担当者につないでください。"
+  order_id_followup: "注文番号は {id} です。"
+  refusal_followup: "注文番号を共有したくありません。担当者につないでください。"

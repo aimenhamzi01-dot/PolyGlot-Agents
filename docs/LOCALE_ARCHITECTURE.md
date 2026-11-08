@@ -16,6 +16,8 @@ environments/customer_service_agent/
     fr.yaml                # French reference pack
     es.yaml                # Spanish synthetic development pack
     zh.yaml                # Simplified Chinese synthetic development pack
+    ja.yaml                # Japanese synthetic development pack
+    ru.yaml                # Russian synthetic development pack
 ```
 
 The generic environment is `CustomerServiceEnv(locale="en")`. `ArabicCustomerServiceEnv` remains as a compatibility wrapper for existing callers and defaults to `locale="ar"`.
@@ -66,7 +68,7 @@ python evaluation/run_benchmark.py \
   --output /tmp/polyglot-en-development.json
 ```
 
-The current `ar`, `en`, `fr`, `es`, and `zh-Hans` packs are available runtime locales; Spanish and Simplified Chinese are adopted as supported development locales. Their parity checks reuse shared synthetic scenarios only; `evaluation/benchmarks/es_tasks.json` and `evaluation/benchmarks/zh_tasks.json` remain empty, unreviewed templates. This locale adoption does not approve benchmark claims: natural language review, independent task authoring, and language-specific calibration are still required before publishing comparative scores.
+The current `ar`, `en`, `fr`, `es`, `zh-Hans`, `ja`, and `ru` packs are available runtime locales. Spanish, Simplified Chinese, Japanese, and Russian are supported development locales. Their parity checks reuse shared synthetic scenarios only; `evaluation/benchmarks/es_tasks.json`, `zh_tasks.json`, `ja_tasks.json`, and `ru_tasks.json` remain empty, unreviewed templates. This locale support does not approve benchmark claims: natural language review, independent task authoring, and language-specific calibration are still required before publishing comparative scores.
 
 ## Adding a language
 

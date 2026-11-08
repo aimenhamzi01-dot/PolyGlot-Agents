@@ -12,10 +12,12 @@ except ImportError:
 class EnvironmentTests(unittest.TestCase):
     def new_env(self, **kwargs): return gym.make('PolyGlotCustomerServiceAr-v1',**kwargs)
 
-    def test_spanish_and_chinese_are_available_development_locales(self):
+    def test_new_multilingual_packs_are_available_development_locales(self):
         locales=set(available_locales())
         self.assertIn("es",locales)
         self.assertIn("zh",locales)
+        self.assertIn("ja",locales)
+        self.assertIn("ru",locales)
         self.assertEqual(CustomerServiceEnv(locale="zh-Hans")._locale_pack["bcp47"],"zh-Hans")
 
     def test_status_requires_lookup_then_truthful_response(self):
@@ -29,6 +31,34 @@ class EnvironmentTests(unittest.TestCase):
         obs,r,terminated,truncated,info=env.step(make_action('send_response',resolution='status',message='تحققت من الطلب A102، والشحنة متأخرة.'))
         self.assertTrue(terminated); self.assertFalse(truncated); self.assertTrue(info['is_success'])
         self.assertAlmostEqual(r,.98); self.assertEqual(len(info['event_log']),2); env.close()
+
+    def test_reset_accepts_task_customer_prompt_without_exposing_scenario_metadata(self):
+        env=CustomerServiceEnv(locale="zh-Hans")
+        prompt="麻烦帮我查一下订单 A102 现在到哪一步了？"
+        obs,info=env.reset(seed=7,options={"scenario_id":"cs_ar_001","customer_prompt":prompt})
+        self.assertEqual(obs["customer_message"],prompt)
+        self.assertEqual(obs["order_id"],"")
+        self.assertNotIn("goal",obs)
+        self.assertNotIn("scenario_id",obs)
+        self.assertNotIn("customer_prompt",info)
+        env.close()
+
+    def test_reset_rejects_invalid_task_customer_prompt(self):
+        env=CustomerServiceEnv(locale="en")
+        with self.assertRaisesRegex(ValueError,"at most 500"):
+            env.reset(options={"scenario_id":"cs_ar_001","customer_prompt":"x"*501})
+        env.close()
+
+    def test_japanese_and_russian_scripts_are_accepted_by_text_spaces(self):
+        examples=(("ja","注文番号 A102 の配送状況を確認してください。","日本語の回答です。"),
+                  ("ru","Проверьте, пожалуйста, статус заказа A102.","Ответ на русском языке."))
+        for locale,customer_message,agent_message in examples:
+            with self.subTest(locale=locale):
+                env=CustomerServiceEnv(locale=locale)
+                obs,_=env.reset(seed=11,options={"scenario_id":"cs_ar_001","customer_prompt":customer_message})
+                self.assertTrue(env.observation_space.contains(obs))
+                self.assertTrue(env.action_space.contains(make_action("send_response",message=agent_message)))
+                env.close()
 
     def test_refund_is_multi_step_and_verified_end_to_end(self):
         env=self.new_env(); env.reset(options={'scenario_id':'cs_ar_002'})

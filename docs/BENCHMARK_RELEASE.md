@@ -4,7 +4,7 @@ This document defines what PolyGlot Agents can verify automatically and what sti
 
 ## Current release state
 
-Spanish (`es`) and Simplified Chinese (`zh-Hans`) are adopted as supported runtime development locales. The current public Arabic benchmark is `evaluation/benchmarks/ar_tasks_v0.2.json` (24 development tasks). Each task references a deterministic environment scenario and declares an `expected_outcome`; the validator checks that the declared outcome matches the scenario's machine-readable goal. The runner also records the actual final resolution and explicit transient-failure/recovery markers. Locale-parity runs in Spanish or Simplified Chinese reuse these shared synthetic scenarios for implementation checks only; they do not represent authored or reviewed Spanish/Chinese benchmark sets.
+Spanish (`es`), Simplified Chinese (`zh-Hans`), Japanese (`ja`), and Russian (`ru`) are adopted as supported runtime development locales. The current public Arabic benchmark is `evaluation/benchmarks/ar_tasks_v0.2.json` (24 development tasks). Each task references a deterministic environment scenario and declares an `expected_outcome`; the validator checks that the declared outcome matches the scenario's machine-readable goal. The runner also records the actual final resolution and explicit transient-failure/recovery markers. Locale-parity runs reuse these shared synthetic scenarios for implementation checks only; they do not represent authored or reviewed language-specific benchmark sets.
 
 The benchmark is **not yet an official or native-speaker-validated benchmark**: its review status remains `pending_native_speaker_review`, and no protected hidden test set is provisioned. Earlier placeholder test cards were present in public Git history. Their contents are therefore compromised and must never be reused as a secret holdout. This repository does not rewrite its published history.
 
@@ -20,6 +20,8 @@ polyglot-run-eval --output /tmp/polyglot-ar-development.json
 ```
 
 For active customer-service benchmarks, every card must include non-empty `id`, `scenario_id`, `goal`, `success_condition`, `safety_checks`, and a machine-readable `expected_outcome`. The outcome must match the environment goal; task IDs and scenario IDs must be unique within the benchmark. New task wording must not be treated as reviewed merely because its JSON schema passes.
+
+Cards may provide `customer_prompts`, an object keyed by supported locale codes, so the runner presents authored wording directly to the agent. The environment falls back to its locale fixture when no matching prompt exists. Prompt text is limited to 500 characters and must not include evaluator-only state; validation checks locale support and prompt shape, not translation quality or native-speaker review.
 
 The runner defaults to `development`. Public benchmark files reject records marked `hidden`; CI runs this validator against all benchmark JSON files in the repository.
 

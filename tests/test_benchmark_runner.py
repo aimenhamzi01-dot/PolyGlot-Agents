@@ -124,12 +124,66 @@ class BenchmarkRunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "scenario IDs must not overlap"):
                 load_benchmark_for_run(public_path, split="hidden", protected_path=protected_path)
 
-    def test_same_semantics_run_through_english_french_spanish_and_chinese_locale_packs(self):
+    def test_same_semantics_run_through_all_non_arabic_locale_packs(self):
         task = {"id": "locale-status", "scenario_id": "cs_ar_001", "split": "development", "category": "status"}
-        for locale in ("en", "fr", "es", "zh"):
+        for locale in ("en", "fr", "es", "zh", "ja", "ru"):
             result = run_task(RuleBasedAgent(locale), task, 200, 10, locale=locale)
             self.assertTrue(result["success"], (locale, result))
             self.assertEqual(result["safety_violations"], 0)
+
+    def test_task_specific_customer_prompts_reach_agent_in_each_locale(self):
+        task = load_tasks(Path("evaluation/benchmarks/ar_tasks_v0.2.json"))[0]
+        prompts = task["customer_prompts"]
+
+        class CapturingAgent:
+            def __init__(self, locale):
+                self.delegate = RuleBasedAgent(locale)
+                self.observations = []
+
+            def act(self, observation):
+                self.observations.append(dict(observation))
+                return self.delegate.act(observation)
+
+        locale_prompt_keys = (("ar", "ar"), ("en", "en"), ("fr", "fr"),
+                              ("es", "es"), ("zh", "zh-Hans"), ("zh-Hans", "zh-Hans"),
+                              ("ja", "ja"), ("ru", "ru"))
+        for locale, prompt_key in locale_prompt_keys:
+            with self.subTest(locale=locale):
+                agent = CapturingAgent(locale)
+                result = run_task(agent, task, 500, 10, locale=locale)
+                first_observation = agent.observations[0]
+                self.assertEqual(first_observation["customer_message"], prompts[prompt_key])
+                self.assertEqual(first_observation["order_id"], "")
+                self.assertNotIn("goal", first_observation)
+                self.assertNotIn("scenario_id", first_observation)
+                self.assertTrue(result["success"], result)
+                self.assertEqual(result["safety_violations"], 0)
+
+    def test_prompt_paraphrases_change_only_customer_surface_form(self):
+        base_task = load_tasks(Path("evaluation/benchmarks/ar_tasks_v0.2.json"))[0]
+        first_task = dict(base_task)
+        second_task = dict(base_task)
+        second_task["customer_prompts"] = dict(base_task["customer_prompts"])
+        second_task["customer_prompts"]["en"] = "I need an update on shipment A102, please."
+
+        class CapturingAgent:
+            def __init__(self):
+                self.delegate = RuleBasedAgent("en")
+                self.first_message = None
+
+            def act(self, observation):
+                if self.first_message is None:
+                    self.first_message = observation["customer_message"]
+                return self.delegate.act(observation)
+
+        first_agent, second_agent = CapturingAgent(), CapturingAgent()
+        first_result = run_task(first_agent, first_task, 510, 10, locale="en")
+        second_result = run_task(second_agent, second_task, 510, 10, locale="en")
+        self.assertNotEqual(first_agent.first_message, second_agent.first_message)
+        self.assertEqual(first_result["scenario_id"], second_result["scenario_id"])
+        self.assertEqual(first_result["actual_resolution"], second_result["actual_resolution"])
+        self.assertEqual(first_result["success"], second_result["success"])
+        self.assertEqual(first_result["safety_violations"], second_result["safety_violations"])
 
     def test_spanish_rule_based_agent_passes_shared_synthetic_development_scenarios(self):
         tasks = load_tasks(Path("evaluation/benchmarks/ar_tasks_v0.2.json"), split="development")
@@ -150,6 +204,17 @@ class BenchmarkRunnerTests(unittest.TestCase):
         self.assertTrue(all(result["success"] for result in results), results)
         self.assertTrue(all(result["safety_violations"] == 0 for result in results), results)
         self.assertTrue(all(result["unsupported_claims"] == 0 for result in results), results)
+
+    def test_japanese_and_russian_rule_based_agents_pass_shared_synthetic_scenarios(self):
+        tasks = load_tasks(Path("evaluation/benchmarks/ar_tasks_v0.2.json"), split="development")
+        for locale in ("ja", "ru"):
+            with self.subTest(locale=locale):
+                results = [run_task(RuleBasedAgent(locale), task, 600 + index, 10, locale=locale)
+                           for index, task in enumerate(tasks)]
+                self.assertTrue(results)
+                self.assertTrue(all(result["success"] for result in results), results)
+                self.assertTrue(all(result["safety_violations"] == 0 for result in results), results)
+                self.assertTrue(all(result["unsupported_claims"] == 0 for result in results), results)
 
 
 if __name__ == "__main__":

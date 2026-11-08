@@ -13,7 +13,7 @@ check:
 	$(PYTHON) -m scripts.validate_benchmarks
 	$(PYTHON) -m scripts.validate_locales
 	$(PYTHON) -m scripts.validate_records --input examples/multilingual.jsonl
-	$(PYTHON) -m compileall -q environments evaluation scripts pipelines tests
+	$(PYTHON) -m compileall -q environments evaluation scripts pipelines serving tests
 
 benchmark:
 	$(PYTHON) evaluation/run_benchmark.py \

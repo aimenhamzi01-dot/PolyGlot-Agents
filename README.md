@@ -199,6 +199,8 @@ client -> FastAPI gateway:8080 -> private vLLM:8000 -> base model + static LoRA 
 
 See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`docker-compose.production.yml`](docker-compose.production.yml):
 
+For OpenAI-compatible agent function calling, see the [Agent Tools API reference](docs/AGENT_TOOLS_API.md). The gateway returns localized schemas and forwards model proposals; applications must execute tools through a separate policy-aware service.
+
 ```bash
 cp .env.production.example .env.production
 # Set the exact base model, adapter path, reviewed VLLM_IMAGE, and long random keys.

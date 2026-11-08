@@ -43,6 +43,12 @@ curl http://localhost:8080/v1/chat/completions \
 
 The gateway exposes only the configured `VLLM_MODEL_NAME`; clients cannot select arbitrary upstream models. Streaming is forwarded when `"stream": true`. `/readyz` checks the private vLLM health endpoint.
 
+## Agent tool calling
+
+The authenticated `GET /v1/tools?locale=en` endpoint returns localized OpenAI function schemas. Pass its `tools` array, plus `tool_choice: "auto"`, to `POST /v1/chat/completions`; the gateway forwards those fields to vLLM. For the complete request/response contract and examples, see the [Agent Tools API reference](AGENT_TOOLS_API.md). The API also appears in FastAPI's `/docs` and `/openapi.json`.
+
+The gateway returns model-proposed `tool_calls` only—it **does not execute them**. Route proposals through a separately authenticated, allowlisted, policy-aware executor. Do not give the model direct access to credentials or connect this inference gateway to production customer records or refund systems.
+
 ## Security requirements before public exposure
 
 - Put TLS and a WAF/API gateway in front of port 8080; do not expose vLLM directly.

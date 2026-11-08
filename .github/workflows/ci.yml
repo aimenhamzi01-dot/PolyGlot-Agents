@@ -34,6 +34,8 @@ jobs:
         run: python -m pip install -e ".[test]"
       - name: Smoke-test installed evaluation CLI
         run: polyglot-run-eval --help
+      - name: Smoke-test API tool registry
+        run: python -c "from serving.tool_registry import get_tool_definitions; assert get_tool_definitions('en')"
       - name: Run tests
         run: python -m pytest -q
       - name: Validate JSON and YAML files
@@ -116,4 +118,4 @@ jobs:
               --report "/tmp/polyglot-${locale}-locale-parity-report.json"
           done
       - name: Check Python bytecode compilation
-        run: python -m compileall -q environments evaluation scripts pipelines tests
+        run: python -m compileall -q environments evaluation scripts pipelines serving tests

@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, Literal
 
 import httpx
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
+
+from serving.tool_registry import available_tool_locales, canonical_tool_locale, get_tool_definitions
 
 VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://vllm:8000").rstrip("/")
 GATEWAY_API_KEY = os.getenv("GATEWAY_API_KEY", "")
@@ -15,7 +17,11 @@ DEFAULT_MODEL = os.getenv("VLLM_MODEL_NAME", "")
 UPSTREAM_API_KEY = os.getenv("VLLM_API_KEY", "")
 TIMEOUT_SECONDS = float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "120"))
 
-app = FastAPI(title="PolyGlot Agents Gateway", version="0.1.0")
+app = FastAPI(
+    title="PolyGlot Agents Gateway",
+    version="0.1.0",
+    description="OpenAI-compatible inference gateway. Tool schemas are exposed for model proposals; the gateway never executes tools.",
+)
 
 
 class ChatRequest(BaseModel):
@@ -24,6 +30,9 @@ class ChatRequest(BaseModel):
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     max_tokens: int = Field(default=256, gt=0, le=4096)
     stream: bool = False
+    tools: list[dict[str, Any]] | None = Field(default=None, max_length=32)
+    tool_choice: Literal["none", "auto", "required"] | dict[str, Any] | None = None
+    parallel_tool_calls: bool | None = None
 
 
 async def authenticate(authorization: str | None = Header(default=None)) -> None:
@@ -65,7 +74,7 @@ async def chat_completions(payload: ChatRequest, _: None = Depends(authenticate)
         raise HTTPException(status_code=503, detail="VLLM_MODEL_NAME is not configured")
     if DEFAULT_MODEL and model != DEFAULT_MODEL:
         raise HTTPException(status_code=400, detail="Requested model is not enabled")
-    body = payload.model_dump()
+    body = payload.model_dump(exclude_none=True)
     body["model"] = model
     try:
         if payload.stream:
@@ -109,3 +118,21 @@ async def models(_: None = Depends(authenticate)):
         return JSONResponse(response.json(), status_code=response.status_code)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="vLLM upstream is unavailable") from exc
+
+
+@app.get("/v1/tools", summary="List agent tool schemas")
+def list_tools(
+    locale: str = Query(default="en", min_length=2, max_length=16),
+    _: None = Depends(authenticate),
+) -> dict[str, Any]:
+    """Return localized OpenAI function-calling definitions; no tools are executed here."""
+    try:
+        tools = get_tool_definitions(locale)
+    except ValueError as exc:
+        supported = ", ".join(available_tool_locales())
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported locale. Supported primary language codes: {supported}",
+        ) from exc
+    canonical_locale = canonical_tool_locale(locale)
+    return {"object": "list", "locale": canonical_locale, "tools": tools}
